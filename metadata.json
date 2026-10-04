@@ -1,0 +1,6 @@
+{
+  "name": "CareShift - Jadwal Perawat & Panduan Rawat Inap",
+  "description": "Aplikasi display jadwal dinas perawat 3 shift (WITA), roster terpusat, integrasi slide TV, dan panduan edukasi rawat inap.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

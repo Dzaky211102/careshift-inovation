@@ -1,0 +1,476 @@
+import { Nurse, Patient, EducationArticle, AppSettings, ShiftDuty, DashboardImage } from '../types';
+import { DEFAULT_SHIFT_CONFIGS, getWitaDateString } from '../utils/witaTime';
+
+export const DEFAULT_NURSES: Nurse[] = [
+  {
+    id: 'nurse-1',
+    name: 'Ns. Siti Rahmawati, S.Kep',
+    nip: 'NIRA: 3201.0094.218',
+    role: 'Kepala Ruangan',
+    photoUrl: 'https://images.unsplash.com/photo-1594824813524-87be361b7fcf?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 1, siang: 2, malam: 3 },
+  },
+  {
+    id: 'nurse-2',
+    name: 'Ns. Ahmad Fauzi, S.Kep',
+    nip: 'NIRA: 3201.0088.452',
+    role: 'Katim / Perawat Primer',
+    photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 4, siang: 5, malam: 6 },
+  },
+  {
+    id: 'nurse-3',
+    name: 'Ns. Nur Aini, Amd.Kep',
+    nip: 'NIRA: 3201.0112.981',
+    role: 'Penanggung Jawab Shift',
+    photoUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 7, siang: 8, malam: 9 },
+  },
+  {
+    id: 'nurse-4',
+    name: 'Ns. Budi Santoso, S.Kep',
+    nip: 'NIRA: 3201.0076.115',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 10, siang: 11, malam: 12 },
+  },
+  {
+    id: 'nurse-5',
+    name: 'Ns. Rina Kusuma, Amd.Kep',
+    nip: 'NIRA: 3201.0143.604',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 13, siang: 14, malam: 15 },
+  },
+  {
+    id: 'nurse-6',
+    name: 'Ns. Dwi Prasetyo, S.Kep',
+    nip: 'NIRA: 3201.0155.823',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 16, siang: 17, malam: 18 },
+  },
+  {
+    id: 'nurse-7',
+    name: 'Ns. Maya Anggraini, S.Kep',
+    nip: 'NIRA: 3201.0167.391',
+    role: 'Katim / Perawat Primer',
+    photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 19, siang: 20, malam: 21 },
+  },
+  {
+    id: 'nurse-8',
+    name: 'Ns. Hendra Wijaya, Amd.Kep',
+    nip: 'NIRA: 3201.0178.442',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 22, siang: 23, malam: 24 },
+  },
+  {
+    id: 'nurse-9',
+    name: 'Ns. Tri Wulandari, S.Kep',
+    nip: 'NIRA: 3201.0189.510',
+    role: 'Penanggung Jawab Shift',
+    photoUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 25, siang: 26, malam: 27 },
+  },
+  {
+    id: 'nurse-10',
+    name: 'Ns. Rizky Pratama, Amd.Kep',
+    nip: 'NIRA: 3201.0192.628',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 28, siang: 29, malam: 30 },
+  },
+];
+
+export const DEFAULT_PATIENTS: Patient[] = [
+  {
+    id: 'pat-1',
+    rmNumber: 'RM-2026-081',
+    name: 'Bpk. Hendro Suwito',
+    dateOfBirth: '1978-04-12',
+    gender: 'L',
+    roomBed: 'Kamar 302 - Bed A (VIP Teratai)',
+    diagnosis: 'Appendisitis Akut',
+    doctorName: 'dr. Bambang Irawan, Sp.B (Spesialis Bedah Umum)',
+    procedureName: 'Operasi Laparoskopi Appendektomi (Pengangkatan Usus Buntu Minimal Invasif)',
+    procedureDate: '2026-10-04 09:00 WITA',
+    stage: 'pra_operasi',
+    allergies: 'Penisilin (Reaksi gatal)',
+    notes: 'Pasien mulai puasa pukul 01:00 WITA dini hari. Infus Ringer Lactate 20 tpm.',
+    checklist: [
+      {
+        id: 'c1',
+        stage: 'sebelum',
+        title: 'Puasa Makan & Minum 6-8 jam',
+        description: 'Mulai puasa pukul 01:00 WITA sesuai anjuran dr. Anestesi',
+        completed: false,
+      },
+      {
+        id: 'c2',
+        stage: 'sebelum',
+        title: 'Mandi Antiseptik & Ganti Baju Operasi',
+        description: 'Gunakan sabun antiseptik klorheksidin sebelum ke ruang operasi',
+        completed: false,
+      },
+      {
+        id: 'c3',
+        stage: 'sebelum',
+        title: 'Lepas Aksesoris & Gigi Palsu',
+        description: 'Simpan cincin, perhiasan, kacamata pada keluarga pasien',
+        completed: true,
+      },
+      {
+        id: 'c4',
+        stage: 'sebelum',
+        title: 'Pemeriksaan Darah Lengkap & EKG',
+        description: 'Hasil lab Hb: 13.8 g/dL, Koagulasi normal, EKG sinus ritme',
+        completed: true,
+      },
+      {
+        id: 'c5',
+        stage: 'setelah',
+        title: 'Observasi Tanda Vital di Recovery Room',
+        description: 'Tekanan darah, nadi, respirasi, dan saturasi oksigen tiap 15 menit',
+        completed: false,
+      },
+      {
+        id: 'c6',
+        stage: 'setelah',
+        title: 'Manajemen Nyeri Skala 1-10',
+        description: 'Laporkan bila nyeri melebihi skala 4 kepada perawat jaga',
+        completed: false,
+      },
+      {
+        id: 'c7',
+        stage: 'luka',
+        title: 'Perawatan Luka Bekas Sayatan Port',
+        description: 'Jaga perban tetap kering dan steril selama 3-5 hari pertama',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'pat-2',
+    rmNumber: 'RM-2026-092',
+    name: 'Ibu Ratna Dewi',
+    dateOfBirth: '1989-11-25',
+    gender: 'P',
+    roomBed: 'Kamar 305 - Bed B (Kelas 1)',
+    diagnosis: 'Cholelithiasis (Batu Empedu)',
+    doctorName: 'dr. Anisa Puspita, Sp.B-KBD (Konsultan Bedah Digestif)',
+    procedureName: 'Laparoskopi Kolesistektomi',
+    procedureDate: '2026-10-03 14:30 WITA',
+    stage: 'sedang_operasi',
+    allergies: 'Tidak ada alergi obat',
+    notes: 'Sedang di ruang Operasi IBS Lt. 2. Estimasi selesai pukul 16:30 WITA.',
+    checklist: [
+      {
+        id: 'c21',
+        stage: 'sebelum',
+        title: 'Puasa Pra-Operasi Selesai',
+        description: 'Puasa dijalani dengan patuh mulai 06:00 pagi WITA',
+        completed: true,
+      },
+      {
+        id: 'c22',
+        stage: 'sebelum',
+        title: 'Skin Marking Lokasi Insisi',
+        description: 'Verifikasi site marking oleh dr. Operator',
+        completed: true,
+      },
+      {
+        id: 'c23',
+        stage: 'setelah',
+        title: 'Mobilisasi Dini Bertahap',
+        description: 'Miring kanan-miring kiri setelah 4 jam sadar penuh',
+        completed: false,
+      },
+      {
+        id: 'c24',
+        stage: 'luka',
+        title: 'Perawatan Luka Laparoskopi',
+        description: 'Ganti kassa steril pada hari ke-3 di rumah',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'pat-3',
+    rmNumber: 'RM-2026-104',
+    name: 'Bpk. Agus Salim',
+    dateOfBirth: '1965-08-17',
+    gender: 'L',
+    roomBed: 'Kamar 308 - Bed A (Kelas 2)',
+    diagnosis: 'Hernia Inguinalis Lateralis Dextra',
+    doctorName: 'dr. Farhan Malik, Sp.B',
+    procedureName: 'Herniorafi dengan Pemasangan Mesh Prolene',
+    procedureDate: '2026-10-02 10:00 WITA',
+    stage: 'post_operasi',
+    allergies: 'Aspirin',
+    notes: 'Kondisi stabil hari ke-1 post op. Mobilisasi jalan perlahan dipandu perawat.',
+    checklist: [
+      {
+        id: 'c31',
+        stage: 'sebelum',
+        title: 'Prosedur Pra-Operasi Selesai',
+        description: 'Operasi berjalan lancar tanpa komplikasi',
+        completed: true,
+      },
+      {
+        id: 'c32',
+        stage: 'setelah',
+        title: 'Latihan Nafas Dalam & Batuk Efektif',
+        description: 'Dilatih oleh fisioterapis dan perawat',
+        completed: true,
+      },
+      {
+        id: 'c33',
+        stage: 'setelah',
+        title: 'Toleransi Diet Makanan Lunak',
+        description: 'Nafsu makan membaik, flatus (+)',
+        completed: true,
+      },
+      {
+        id: 'c34',
+        stage: 'luka',
+        title: 'Edukasi Rawat Luka & Angkat Jahitan',
+        description: 'Jadwal kontrol poliklinik 5 hari ke depan',
+        completed: false,
+      },
+    ],
+  },
+  {
+    id: 'pat-4',
+    rmNumber: 'RM-2026-115',
+    name: 'Ibu Nurlaila Sari',
+    dateOfBirth: '1995-02-14',
+    gender: 'P',
+    roomBed: 'Kamar 310 - Bed C (Kelas 1)',
+    diagnosis: 'Post Sectio Caesarea H-2 & Tubektomi',
+    doctorName: 'dr. Maya Indrayani, Sp.OG',
+    procedureName: 'Operasi Sectio Caesarea ERACS',
+    procedureDate: '2026-10-01 08:30 WITA',
+    stage: 'pemulihan_pulang',
+    allergies: 'Tidak ada alergi',
+    notes: 'Rencana discharge/pulang hari ini jam 13:00 WITA. Edukasi ASI dan rawat luka SC anti-air.',
+    checklist: [
+      {
+        id: 'c41',
+        stage: 'sebelum',
+        title: 'Operasi Selesai Sukses',
+        description: 'Bayi lahir sehat BB 3.200 gram',
+        completed: true,
+      },
+      {
+        id: 'c42',
+        stage: 'setelah',
+        title: 'Inisiasi Menyusu Dini & Rawat Gabung',
+        description: 'ASI keluar lancar, laktasi aktif',
+        completed: true,
+      },
+      {
+        id: 'c43',
+        stage: 'luka',
+        title: 'Perban Waterproof Anti-Air Terpasang',
+        description: 'Dapat mandi biasa tanpa membasahi luka langsung',
+        completed: true,
+      },
+      {
+        id: 'c44',
+        stage: 'luka',
+        title: 'Konsultasi Layanan Home Care Terjadwal',
+        description: 'Pemesanan perawat kunjungan rumah H+4 kontrol luka',
+        completed: false,
+      },
+    ],
+  },
+];
+
+export const DEFAULT_EDUCATION_ARTICLES: EducationArticle[] = [
+  {
+    id: 'edu-1',
+    category: 'sebelum_operasi',
+    title: 'Panduan Wajib Puasa & Persiapan Fisik Sebelum Operasi',
+    summary: 'Mengapa pasien harus puasa sebelum operasi, berapa jam durasi puasa yang benar, dan cara membersihkan tubuh dengan sabun antiseptik.',
+    content: [
+      'Puasa pra-operasi sangat krusial untuk mencegah terjadinya aspirasi paru (masuknya cairan lambung atau makanan ke saluran pernafasan saat obat bius bekerja).',
+      'Aturan Puasa Standar: Makanan padat/nasi/daging dihentikan minimal 6 - 8 jam sebelum jadwal operasi. Air putih jernih (tanpa gula/susu) diperbolehkan hingga 2 jam sebelum operasi jika disetujui dokter anestesi.',
+      'Kebersihan Diri: Pasien dianjurkan mandi dengan sabun antiseptik khusus yang disediakan rumah sakit pada malam hari dan pagi hari sebelum tindakan untuk mengurangi kolonisasi kuman di kulit.',
+      'Lepas Seluruh Logam & Aksesoris: Cincin, kalung, anting, kacamata, lensa kontak, cat kuku, serta gigi palsu lepasan wajib diserahkan kepada pendamping/keluarga demi keselamatan selama di ruang bedah.',
+      'Minum Obat Rutin: Obat hipertensi tertentu tetap diminum dengan sedikit tegukan air sesuai arahan dokter spesialis anestesi, sedangkan obat pengencer darah wajib dihentikan beberapa hari sebelumnya.',
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=600&q=80',
+    videoUrl: 'https://www.youtube.com/embed/6e-sY9Jj92E',
+    externalLink: {
+      title: 'Pedoman Standar Keselamatan Pasien Pra-Bedah Kemenkes RI',
+      url: 'https://yankes.kemkes.go.id/',
+    },
+    tags: ['Puasa Bedah', 'Anestesi', 'Kebersihan', 'Keselamatan Pasien'],
+  },
+  {
+    id: 'edu-2',
+    category: 'setelah_operasi',
+    title: 'Langkah Pemulihan & Manajemen Nyeri Setelah Operasi',
+    summary: 'Cara mengenali skala nyeri, teknik nafas dalam untuk relaksasi, mobilisasi miring kanan-kiri, dan mencegah rasa mual pasca-operasi.',
+    content: [
+      'Manajemen Nyeri: Rasa nyeri setelah efek bius menghilang adalah wajar. Tim medis menggunakan Skala Nyeri 0 sampai 10 (0 = tidak nyeri, 10 = nyeri sangat hebat). Jangan ragu memencet bel panggil perawat jika skala nyeri Anda di atas 3.',
+      'Latihan Nafas Dalam & Batuk Efektif: Tarik nafas perlahan lewat hidung hingga dada mengembang, tahan 2-3 detik, lalu hembuskan perlahan lewat mulut seperti meniup lilin. Ini berguna mencegah penumpukan lendir dan komplikasi paru.',
+      'Mobilisasi Dini Bertahap (Konsep ERACS): Jangan takut bergerak! Gerakkan jari-jari kaki dan putar pergelangan kaki. Setelah 2-4 jam pasca-operasi, perawat akan memandu Anda miring kanan dan miring kiri untuk melancarkan sirkulasi darah dan mencegah kekakuan sendi.',
+      'Kapan Boleh Minum dan Makan?: Mulailah minum air hangat seteguk demi seteguk setelah perawat memeriksa suara bising usus dan memastikan Anda tidak merasa mual.',
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80',
+    videoUrl: 'https://www.youtube.com/embed/2_N1k-lZfZU',
+    externalLink: {
+      title: 'Protokol ERACS & Mobilisasi Dini Pasca-Operasi PPNI',
+      url: 'https://ppni-ina.org/',
+    },
+    tags: ['Skala Nyeri', 'Mobilisasi Dini', 'Nafas Dalam', 'Ruang Pemulihan'],
+  },
+  {
+    id: 'edu-3',
+    category: 'perawatan_luka',
+    title: 'Cara Tepat Merawat Luka Operasi di Rumah & Tanda Bahaya',
+    summary: 'Teknik menjaga perban tetap kering dan steril, waktu yang tepat untuk ganti kassa, asupan nutrisi protein tinggi, serta deteksi dini infeksi.',
+    content: [
+      'Prinsip Steril & Kebersihan: Selalu cuci tangan dengan sabun dan air mengalir minimal 20 detik atau hand sanitizer sebelum dan sesudah menyentuh area dekat luka.',
+      'Jaga Luka Tetap Bersih dan Kering: Bila menggunakan perban biasa, hindari terkena air saat mandi. Bila perban Anda bertipe waterproof (anti-air transparan), Anda dapat mandi dengan nyaman namun jangan menggosok area luka secara keras.',
+      'Ganti Balutan Sesuai Jadwal: Jangan membuka balutan luka sendiri jika tidak memiliki keahlian atau alat steril. Mintalah bantuan perawat home care atau datang ke klinik rumah sakit.',
+      'Kenali 5 Tanda Bahaya Infeksi (Segera Hubungi Medis):',
+      '1. Rubor: Kemerahan di sekitar pinggiran jahitan yang meluas.',
+      '2. Kalor: Area luka teraba panas bila didekati telapak tangan.',
+      '3. Dolor: Rasa nyeri berdenyut yang makin meningkat hebat dari hari ke hari.',
+      '4. Tumor: Bengkak mengeras atau tepi luka merenggang/terbuka.',
+      '5. Cairan/Nanah: Rembesan cairan kekuningan, berbau tidak sedap, atau keluar darah segar.',
+      'Nutrisi Mempercepat Penyembuhan: Perbanyak konsumsi makanan tinggi protein seperti putih telur (2-3 butir sehari), ikan gabus/kutuk, tahu, tempe, serta buah kaya vitamin C (jeruk, pepaya).',
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80',
+    videoUrl: 'https://www.youtube.com/embed/bL7X_oW5Jbg',
+    externalLink: {
+      title: 'Pedoman Perawatan Luka Bersih di Rumah (Indonesian Wound Care Community)',
+      url: 'https://kemkes.go.id/',
+    },
+    tags: ['Rawat Luka Rumah', 'Tanda Infeksi', 'Nutrisi Protein', 'Home Care'],
+  },
+  {
+    id: 'edu-4',
+    category: 'umum',
+    title: 'Hak & Kewajiban Pasien Serta Tata Tertib Rawat Inap',
+    summary: 'Informasi transparansi hak informasi medis, jam besuk keluarga, dan panduan fasilitas tombol darurat kamar rawat inap.',
+    content: [
+      'Hak Pasien: Berhak memperoleh informasi menyeluruh mengenai diagnosis, tindakan medis, risiko, alternatif tindakan, perkiraan biaya, dan nama dokter serta perawat yang merawat.',
+      'Tombol Panggil Darurat (Nurse Call): Terpasang di sebelah kanan tempat tidur dan di dalam kamar mandi. Tarik tali atau tekan tombol merah jika membutuhkan pertolongan cepat.',
+      'Jam Kunjungan Keluarga: Dibatasi demi menjaga waktu istirahat dan ketenangan pemulihan seluruh pasien di ruangan.',
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80',
+    tags: ['Tata Tertib', 'Nurse Call', 'Jam Besuk', 'Hak Pasien'],
+  },
+];
+
+export const DEFAULT_DASHBOARD_IMAGES: DashboardImage[] = [
+  {
+    id: 'dash-img-1',
+    title: 'Maskot Perawat CareShift 3D',
+    url: 'https://images.unsplash.com/photo-1594824813524-87be361b7fcf?auto=format&fit=crop&w=800&q=80',
+    caption: 'Maskot Utama Ruangan Rawat Inap',
+    isActive: true,
+    uploadedAt: '2026-10-01',
+  },
+  {
+    id: 'dash-img-2',
+    title: 'Tim Medis & Dokter Bedah',
+    url: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80',
+    caption: 'Konsultasi & Edukasi Pasien Bedah',
+    isActive: false,
+    uploadedAt: '2026-10-01',
+  },
+  {
+    id: 'dash-img-3',
+    title: 'Fasilitas Kamar Rawat Inap Modern',
+    url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80',
+    caption: 'Kenyamanan Pasien Prioritas Kami',
+    isActive: false,
+    uploadedAt: '2026-10-01',
+  },
+];
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  hospitalName: 'RS Citra Sehat Care',
+  wardName: 'Ruang Rawat Inap Teratai - Lantai 3',
+  hospitalLogoUrl: '',
+  institutionLogoUrl: '',
+  greetingMorning: 'Selamat Pagi! Tim Perawat Siap Melayani dengan Hati',
+  greetingAfternoon: 'Selamat Siang! Tetap Semangat Menjalani Pemulihan Hari Ini',
+  greetingNight: 'Selamat Beristirahat! Perawat Jaga Siap Memantau Kenyamanan Anda',
+  bannerNotice: 'Pengumuman: Jam Kunjungan Keluarga Siang 11.00 - 13.00 WITA & Malam 17.00 - 19.00 WITA. Maksimal 2 orang pendamping di kamar rawat inap.',
+  footerText: 'Sistem Informasi Jadwal Jaga & Edukasi Terpadu Rawat Inap RS Citra Sehat Care © 2026. Melayani dengan Senyum, Empati, dan Profesionalisme.',
+  emergencyPhone: '(0411) 7890-1122 / IGD Ext. 118',
+  visitingHours: 'Siang: 11.00 - 13.00 WITA | Sore: 17.00 - 19.00 WITA',
+  homecareWhatsappNumber: '6281234567890',
+  homecareWhatsappMessage: 'Halo Tim Home Care RS Citra Sehat Care, saya ingin konsultasi dan pemesanan layanan perawatan luka pasca-operasi di rumah.',
+  canvaPresentationUrl: 'https://www.canva.com/design/DAHWr4gdNZ8/KCDVl3LiqfMrMhTgPuwwvw/view?embed',
+  canvaEmbedUrl: 'https://www.canva.com/design/DAHWr4gdNZ8/KCDVl3LiqfMrMhTgPuwwvw/view?embed',
+  themeMode: 'auto',
+  accentColor: '#9333EA',
+  adminPin: '1234',
+  shiftConfigs: DEFAULT_SHIFT_CONFIGS,
+  dashboardImages: DEFAULT_DASHBOARD_IMAGES,
+  selectedDashboardImageId: 'dash-img-1',
+  googleSheets: {
+    enabled: false,
+    webAppUrl: '',
+    sheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+    lastSyncedAt: undefined,
+  },
+};
+
+/**
+ * Generate 1 full month of initial schedule in WITA
+ */
+export function generateInitialMonthlySchedules(): ShiftDuty[] {
+  const duties: ShiftDuty[] = [];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const shifts = ['pagi', 'siang', 'malam'];
+  const nurseGroups = [
+    ['nurse-1', 'nurse-2', 'nurse-3', 'nurse-4', 'nurse-5'],
+    ['nurse-2', 'nurse-4', 'nurse-6', 'nurse-7', 'nurse-8', 'nurse-1'],
+    ['nurse-3', 'nurse-5', 'nurse-7', 'nurse-9', 'nurse-10', 'nurse-2', 'nurse-4'],
+    ['nurse-1', 'nurse-6', 'nurse-8', 'nurse-9', 'nurse-10'],
+    ['nurse-2', 'nurse-3', 'nurse-5', 'nurse-7', 'nurse-10'],
+    ['nurse-4', 'nurse-6', 'nurse-7', 'nurse-8', 'nurse-9'],
+  ];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayStr = String(d).padStart(2, '0');
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${dayStr}`;
+
+    shifts.forEach((shift, sIdx) => {
+      const gIdx = (d + sIdx) % nurseGroups.length;
+      duties.push({
+        id: `duty-${dateStr}-${shift}`,
+        date: dateStr,
+        shift: shift,
+        nurseIds: [...nurseGroups[gIdx]],
+        notes: `Tim Dinas Sif ${shift.toUpperCase()} - Ruang Teratai Lt. 3`,
+        updatedAt: new Date().toISOString(),
+      });
+    });
+  }
+
+  return duties;
+}

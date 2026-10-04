@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+  
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Nunito', 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+.clay-card {
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 1.5rem;
+  box-shadow: 12px 14px 28px rgba(188, 175, 214, 0.25), -8px -8px 24px #ffffff;
+}
+
+.clay-card-flat {
+  border-radius: 1.25rem;
+  box-shadow: 6px 8px 18px rgba(195, 185, 220, 0.2), -6px -6px 16px #ffffff;
+}
+
+.clay-avatar {
+  border: 3px solid #ffffff;
+  box-shadow: 4px 6px 16px rgba(175, 160, 210, 0.25), inset 2px 2px 4px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4cbeb;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b5a7db;
+}
