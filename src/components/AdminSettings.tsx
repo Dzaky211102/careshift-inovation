@@ -148,6 +148,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // --- EDUCATION FORM ---
   const [isEduFormOpen, setIsEduFormOpen] = useState(false);
+  const [editingEduId, setEditingEduId] = useState<string | null>(null);
   const [eduForm, setEduForm] = useState({
     category: 'sebelum_operasi' as EducationArticle['category'],
     title: '',
@@ -1654,11 +1655,30 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             </div>
 
             <button
-              onClick={() => setIsEduFormOpen(!isEduFormOpen)}
+              onClick={() => {
+                if (isEduFormOpen) {
+                  setIsEduFormOpen(false);
+                  setEditingEduId(null);
+                } else {
+                  setEditingEduId(null);
+                  setEduForm({
+                    category: 'sebelum_operasi',
+                    title: '',
+                    summary: '',
+                    content: '',
+                    imageUrl: '',
+                    videoUrl: '',
+                    externalTitle: '',
+                    externalUrl: '',
+                    tags: '',
+                  });
+                  setIsEduFormOpen(true);
+                }
+              }}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-all flex items-center gap-1.5 shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>{isEduFormOpen ? 'Batal' : 'Tambah Modul Edukasi'}</span>
+              <span>{isEduFormOpen ? 'Tutup Form' : 'Tambah Modul Edukasi'}</span>
             </button>
           </div>
 
@@ -1677,42 +1697,97 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   .map((t) => t.trim())
                   .filter((t) => t.length > 0);
 
-                const newArt: EducationArticle = {
-                  id: `edu-${Date.now()}`,
-                  category: eduForm.category,
-                  title: eduForm.title.trim(),
-                  summary: eduForm.summary.trim(),
-                  content: contents.length > 0 ? contents : ['Instruksi perawat ruangan.'],
-                  imageUrl: eduForm.imageUrl.trim() || undefined,
-                  videoUrl: eduForm.videoUrl.trim() || undefined,
-                  externalLink: eduForm.externalUrl.trim()
-                    ? {
-                        title: eduForm.externalTitle.trim() || 'Pedoman Medis Resmi',
-                        url: eduForm.externalUrl.trim(),
-                      }
-                    : undefined,
-                  tags: tagList.length > 0 ? tagList : ['Edukasi'],
-                };
+                if (editingEduId) {
+                  // Mode Edit: Perbarui modul edukasi yang sudah ada
+                  const updatedArt: EducationArticle = {
+                    id: editingEduId,
+                    category: eduForm.category,
+                    title: eduForm.title.trim(),
+                    summary: eduForm.summary.trim(),
+                    content: contents.length > 0 ? contents : ['Instruksi perawat ruangan.'],
+                    imageUrl: eduForm.imageUrl.trim() || undefined,
+                    videoUrl: eduForm.videoUrl.trim() || undefined,
+                    externalLink: eduForm.externalUrl.trim()
+                      ? {
+                          title: eduForm.externalTitle.trim() || 'Pedoman Medis Resmi',
+                          url: eduForm.externalUrl.trim(),
+                        }
+                      : undefined,
+                    tags: tagList.length > 0 ? tagList : ['Edukasi'],
+                  };
 
-                const updated = [newArt, ...educationArticles];
-                onUpdateEducation(updated);
-                StorageService.saveEducationArticles(updated);
-                setEduForm({
-                  category: 'sebelum_operasi',
-                  title: '',
-                  summary: '',
-                  content: '',
-                  imageUrl: '',
-                  videoUrl: '',
-                  externalTitle: '',
-                  externalUrl: '',
-                  tags: '',
-                });
-                setIsEduFormOpen(false);
+                  const updated = educationArticles.map((a) =>
+                    a.id === editingEduId ? updatedArt : a
+                  );
+                  onUpdateEducation(updated);
+                  StorageService.saveEducationArticles(updated);
+
+                  setEduForm({
+                    category: 'sebelum_operasi',
+                    title: '',
+                    summary: '',
+                    content: '',
+                    imageUrl: '',
+                    videoUrl: '',
+                    externalTitle: '',
+                    externalUrl: '',
+                    tags: '',
+                  });
+                  setEditingEduId(null);
+                  setIsEduFormOpen(false);
+                } else {
+                  // Mode Tambah Baru
+                  const newArt: EducationArticle = {
+                    id: `edu-${Date.now()}`,
+                    category: eduForm.category,
+                    title: eduForm.title.trim(),
+                    summary: eduForm.summary.trim(),
+                    content: contents.length > 0 ? contents : ['Instruksi perawat ruangan.'],
+                    imageUrl: eduForm.imageUrl.trim() || undefined,
+                    videoUrl: eduForm.videoUrl.trim() || undefined,
+                    externalLink: eduForm.externalUrl.trim()
+                      ? {
+                          title: eduForm.externalTitle.trim() || 'Pedoman Medis Resmi',
+                          url: eduForm.externalUrl.trim(),
+                        }
+                      : undefined,
+                    tags: tagList.length > 0 ? tagList : ['Edukasi'],
+                  };
+
+                  const updated = [newArt, ...educationArticles];
+                  onUpdateEducation(updated);
+                  StorageService.saveEducationArticles(updated);
+
+                  setEduForm({
+                    category: 'sebelum_operasi',
+                    title: '',
+                    summary: '',
+                    content: '',
+                    imageUrl: '',
+                    videoUrl: '',
+                    externalTitle: '',
+                    externalUrl: '',
+                    tags: '',
+                  });
+                  setIsEduFormOpen(false);
+                  setEditingEduId(null);
+                }
               }}
               className="p-5 bg-purple-50/50 rounded-2xl border border-purple-200 space-y-3 animate-fadeIn"
             >
-              <h4 className="text-xs font-bold text-purple-900 mb-2">Form Tambah Materi Edukasi Pasien</h4>
+              <div className="flex items-center justify-between pb-1 border-b border-purple-100">
+                <h4 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                  <PenLine className="w-4 h-4 text-purple-600" />
+                  <span>
+                    {editingEduId ? 'Edit Materi Edukasi Pasien' : 'Form Tambah Materi Edukasi Pasien'}
+                  </span>
+                </h4>
+                {editingEduId && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-200 text-purple-800">
+                    Mode Edit Aktif
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">
@@ -1811,16 +1886,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsEduFormOpen(false)}
+                  onClick={() => {
+                    setIsEduFormOpen(false);
+                    setEditingEduId(null);
+                  }}
                   className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-all flex items-center gap-1.5"
                 >
-                  Simpan Edukasi
+                  <Save className="w-4 h-4" />
+                  <span>{editingEduId ? 'Simpan Perubahan Edukasi' : 'Simpan Edukasi'}</span>
                 </button>
               </div>
             </form>
@@ -1831,30 +1910,67 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             {educationArticles.map((art) => (
               <div
                 key={art.id}
-                className="clay-card-flat bg-white p-4 border border-purple-100 flex items-start justify-between gap-4 rounded-2xl"
+                className="clay-card-flat bg-white p-4 border border-purple-100 flex items-start justify-between gap-4 rounded-2xl hover:border-purple-300 transition-all"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
                       {art.category.replace('_', ' ').toUpperCase()}
                     </span>
+                    {editingEduId === art.id && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 animate-pulse">
+                        Sedang Diedit
+                      </span>
+                    )}
                   </div>
                   <h4 className="font-bold text-slate-800 text-sm">{art.title}</h4>
                   <p className="text-xs text-slate-500 mt-0.5">{art.summary}</p>
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (confirm('Yakin ingin menghapus materi edukasi ini?')) {
-                      const updated = educationArticles.filter((a) => a.id !== art.id);
-                      onUpdateEducation(updated);
-                      StorageService.saveEducationArticles(updated);
-                    }
-                  }}
-                  className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingEduId(art.id);
+                      setEduForm({
+                        category: art.category,
+                        title: art.title,
+                        summary: art.summary,
+                        content: Array.isArray(art.content)
+                          ? art.content.join('\n')
+                          : art.content || '',
+                        imageUrl: art.imageUrl || '',
+                        videoUrl: art.videoUrl || '',
+                        externalTitle: art.externalLink?.title || '',
+                        externalUrl: art.externalLink?.url || '',
+                        tags: (art.tags || []).join(', '),
+                      });
+                      setIsEduFormOpen(true);
+                    }}
+                    className="p-1.5 rounded-xl hover:bg-purple-100 text-slate-500 hover:text-purple-700 transition-colors"
+                    title="Edit Modul Edukasi Ini"
+                  >
+                    <PenLine className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Yakin ingin menghapus materi edukasi "${art.title}"?`)) {
+                        const updated = educationArticles.filter((a) => a.id !== art.id);
+                        onUpdateEducation(updated);
+                        StorageService.saveEducationArticles(updated);
+                        if (editingEduId === art.id) {
+                          setIsEduFormOpen(false);
+                          setEditingEduId(null);
+                        }
+                      }
+                    }}
+                    className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                    title="Hapus Materi Edukasi Ini"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

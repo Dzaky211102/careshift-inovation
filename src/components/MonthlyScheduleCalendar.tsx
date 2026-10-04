@@ -15,9 +15,11 @@ import {
   LockOpen,
   ShieldCheck,
   ShieldAlert,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Nurse, ShiftDuty, ShiftConfig } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
+import { ExcelScheduleModal } from './ExcelScheduleModal';
 import {
   getWitaDateParts,
   getWitaDateString,
@@ -30,6 +32,7 @@ interface MonthlyScheduleCalendarProps {
   shiftConfigs: ShiftConfig[];
   isAdmin: boolean;
   onSaveSchedule: (schedule: ShiftDuty) => void;
+  onImportSchedules?: (importedDuties: ShiftDuty[]) => void;
   onOpenLoginModal: () => void;
 }
 
@@ -39,6 +42,7 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
   shiftConfigs,
   isAdmin,
   onSaveSchedule,
+  onImportSchedules,
   onOpenLoginModal,
 }) => {
   // Current month & year in WITA
@@ -49,6 +53,7 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
   const [selectedDate, setSelectedDate] = useState<string>(todayDateStr);
   const [selectedShift, setSelectedShift] = useState<string>('pagi');
   const [showToast, setShowToast] = useState(false);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
   // Month & Day calculations based on currentDate
   const year = currentDate.getFullYear();
@@ -249,30 +254,53 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
           </p>
         </div>
 
-        {/* Month Navigation */}
-        <div className="flex items-center gap-3 bg-purple-50/80 px-3 py-1.5 rounded-2xl border border-purple-200/60 shadow-inner">
-          <button
-            onClick={handlePrevMonth}
-            className="w-8 h-8 rounded-xl bg-white hover:bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs transition-all"
-            title="Bulan Sebelumnya"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="text-center px-2">
-            <span className="font-display font-black text-sm md:text-base text-purple-900 block leading-tight">
-              {monthNames[month]} {year}
-            </span>
-            <span className="text-[10px] text-purple-600 font-semibold block">
-              {daysInMonth} Hari Terjadwal
-            </span>
+        {/* Actions & Month Navigation */}
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+          {isAdmin ? (
+            <button
+              onClick={() => setIsExcelModalOpen(true)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-200 transition-all flex items-center gap-1.5 shrink-0"
+              title="Tambah atau unggah jadwal dinas dari file Excel (.xlsx / .csv) tanpa menimpa data lama"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Tambah Jadwal via Excel</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenLoginModal}
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
+              title="Masuk sebagai Admin untuk mengimpor jadwal Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span className="hidden sm:inline">Impor Excel (Admin)</span>
+            </button>
+          )}
+
+          {/* Month Navigation */}
+          <div className="flex items-center gap-3 bg-purple-50/80 px-3 py-1.5 rounded-2xl border border-purple-200/60 shadow-inner">
+            <button
+              onClick={handlePrevMonth}
+              className="w-8 h-8 rounded-xl bg-white hover:bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs transition-all"
+              title="Bulan Sebelumnya"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="text-center px-2">
+              <span className="font-display font-black text-sm md:text-base text-purple-900 block leading-tight">
+                {monthNames[month]} {year}
+              </span>
+              <span className="text-[10px] text-purple-600 font-semibold block">
+                {daysInMonth} Hari Terjadwal
+              </span>
+            </div>
+            <button
+              onClick={handleNextMonth}
+              className="w-8 h-8 rounded-xl bg-white hover:bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs transition-all"
+              title="Bulan Berikutnya"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={handleNextMonth}
-            className="w-8 h-8 rounded-xl bg-white hover:bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs transition-all"
-            title="Bulan Berikutnya"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
@@ -564,6 +592,22 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
           </div>
         </div>
       </div>
+
+      {/* Excel Schedule Importer Modal */}
+      <ExcelScheduleModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        nurses={nurses}
+        schedules={schedules}
+        shiftConfigs={configs}
+        onImportSchedules={(merged) => {
+          if (onImportSchedules) {
+            onImportSchedules(merged);
+          } else {
+            merged.forEach((d) => onSaveSchedule(d));
+          }
+        }}
+      />
     </div>
   );
 };

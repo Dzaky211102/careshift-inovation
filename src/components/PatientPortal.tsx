@@ -19,6 +19,7 @@ import {
   Check,
   Play,
   Link2,
+  PenLine,
 } from 'lucide-react';
 import { Patient, EducationArticle, AppSettings } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -29,6 +30,8 @@ interface PatientPortalProps {
   settings: AppSettings;
   initialSearchQuery?: string;
   onUpdatePatientChecklist: (patientId: string, checklistId: string, completed: boolean) => void;
+  isAdmin?: boolean;
+  onOpenEducationSettings?: () => void;
 }
 
 export const PatientPortal: React.FC<PatientPortalProps> = ({
@@ -37,6 +40,8 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   settings,
   initialSearchQuery = '',
   onUpdatePatientChecklist,
+  isAdmin = false,
+  onOpenEducationSettings,
 }) => {
   const [searchInput, setSearchInput] = useState(initialSearchQuery);
   const [activePatient, setActivePatient] = useState<Patient | null>(() => {
@@ -353,6 +358,16 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
                             #{tag}
                           </span>
                         ))}
+                        {isAdmin && onOpenEducationSettings && (
+                          <button
+                            onClick={onOpenEducationSettings}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 flex items-center gap-1 transition-colors"
+                            title="Buka panel admin untuk mengedit modul edukasi"
+                          >
+                            <PenLine className="w-3 h-3" />
+                            <span>Edit Modul (Admin)</span>
+                          </button>
+                        )}
                       </div>
                       <h4 className="font-display font-black text-lg text-slate-800 leading-snug">
                         {article.title}

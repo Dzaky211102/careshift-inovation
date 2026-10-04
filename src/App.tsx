@@ -135,6 +135,18 @@ export default function App() {
     FirebaseSyncService.saveScheduleOnline(duty);
   };
 
+  const handleImportSchedules = (mergedDuties: ShiftDuty[]) => {
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang dapat mengimpor roster sift.');
+      return;
+    }
+    StorageService.saveSchedules(mergedDuties);
+    setSchedules(mergedDuties);
+    mergedDuties.forEach((duty) => {
+      FirebaseSyncService.saveScheduleOnline(duty);
+    });
+  };
+
   const handleUpdateNurses = (updated: Nurse[]) => {
     nurses.forEach((oldNurse) => {
       if (!updated.some((n) => n.id === oldNurse.id)) {
@@ -260,7 +272,7 @@ export default function App() {
               />
             )}
 
-            {/* TAB: MONTHLY SCHEDULE (Jadwal 1 Bulan) */}
+            {/* TAB: MONTHLY SCHEDULE (Jadwal Perawat) */}
             {activeTab === 'monthly' && (
               <MonthlyScheduleCalendar
                 nurses={nurses}
@@ -268,6 +280,7 @@ export default function App() {
                 shiftConfigs={settings.shiftConfigs}
                 isAdmin={isAdmin}
                 onSaveSchedule={handleSaveSchedule}
+                onImportSchedules={handleImportSchedules}
                 onOpenLoginModal={() => setIsLoginModalOpen(true)}
               />
             )}
@@ -291,6 +304,8 @@ export default function App() {
                 educationArticles={educationArticles}
                 settings={settings}
                 initialSearchQuery={patientSearchQuery}
+                isAdmin={isAdmin}
+                onOpenEducationSettings={() => setActiveTab('settings')}
                 onUpdatePatientChecklist={(patientId, checkId, completed) => {
                   const updated = patients.map((p) =>
                     p.id === patientId && p.checklist
