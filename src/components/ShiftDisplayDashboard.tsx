@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sun,
   SunMedium,
   Moon,
   Users,
   Presentation,
+  Tv,
   HeartHandshake,
   Heart,
   Sparkles,
@@ -19,6 +20,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
+import { ConnectTvModal } from './ConnectTvModal';
 import { Nurse, Patient, AppSettings, ShiftDuty, ShiftConfig } from '../types';
 import {
   getWitaDateString,
@@ -55,6 +57,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
   onOpenMonthlySchedule,
   onOpenImageSettings,
 }) => {
+  const [isConnectTvOpen, setIsConnectTvOpen] = useState(false);
   const todayWitaDate = getWitaDateString(new Date());
 
   // Requirement 5: Synchronized nurse list directly from duty nurseIds
@@ -181,11 +184,72 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
     dashboardImages.find((img) => img.isActive) ||
     dashboardImages[0];
 
+  const getThemeStyling = () => {
+    switch (settings?.dashboardColorTheme) {
+      case 'teal':
+        return {
+          heroGradient: 'bg-gradient-to-br from-teal-50/90 via-emerald-50/70 to-cyan-50/90 border-teal-200/80',
+          badgeClass: 'bg-teal-100 text-teal-800',
+          btnPrimary: 'bg-teal-600 hover:bg-teal-700 text-white shadow-teal-200',
+          iconBg: 'bg-teal-100 text-teal-700',
+          noticeBg: 'bg-teal-100/70 border-teal-200 text-teal-900',
+          subtext: 'text-teal-700',
+        };
+      case 'blue':
+        return {
+          heroGradient: 'bg-gradient-to-br from-blue-50/90 via-sky-50/70 to-indigo-50/90 border-blue-200/80',
+          badgeClass: 'bg-blue-100 text-blue-800',
+          btnPrimary: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200',
+          iconBg: 'bg-blue-100 text-blue-700',
+          noticeBg: 'bg-blue-100/70 border-blue-200 text-blue-900',
+          subtext: 'text-blue-700',
+        };
+      case 'emerald':
+        return {
+          heroGradient: 'bg-gradient-to-br from-emerald-50/90 via-green-50/70 to-teal-50/90 border-emerald-200/80',
+          badgeClass: 'bg-emerald-100 text-emerald-800',
+          btnPrimary: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200',
+          iconBg: 'bg-emerald-100 text-emerald-700',
+          noticeBg: 'bg-emerald-100/70 border-emerald-200 text-emerald-900',
+          subtext: 'text-emerald-700',
+        };
+      case 'rose':
+        return {
+          heroGradient: 'bg-gradient-to-br from-rose-50/90 via-pink-50/70 to-purple-50/90 border-rose-200/80',
+          badgeClass: 'bg-rose-100 text-rose-800',
+          btnPrimary: 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200',
+          iconBg: 'bg-rose-100 text-rose-700',
+          noticeBg: 'bg-rose-100/70 border-rose-200 text-rose-900',
+          subtext: 'text-rose-700',
+        };
+      case 'indigo':
+        return {
+          heroGradient: 'bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-slate-50/90 border-indigo-200/80',
+          badgeClass: 'bg-indigo-100 text-indigo-800',
+          btnPrimary: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200',
+          iconBg: 'bg-indigo-100 text-indigo-700',
+          noticeBg: 'bg-indigo-100/70 border-indigo-200 text-indigo-900',
+          subtext: 'text-indigo-700',
+        };
+      default:
+        return {
+          heroGradient: 'bg-gradient-to-br from-pink-50/90 via-purple-50/70 to-indigo-50/90 border-purple-100',
+          badgeClass: 'bg-purple-100 text-purple-800',
+          btnPrimary: 'bg-[#8D6DCF] hover:bg-[#7B59BD] text-white shadow-purple-200',
+          iconBg: 'bg-purple-100 text-purple-700',
+          noticeBg: 'bg-purple-100/70 border-purple-200 text-purple-900',
+          subtext: 'text-purple-700',
+        };
+    }
+  };
+
+  const themeStyle = getThemeStyling();
+
   return (
     <div className="space-y-6">
       {/* Running Notice Banner */}
       {settings.bannerNotice && (
-        <div className="bg-purple-100/70 border border-purple-200 text-purple-900 px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs md:text-sm font-medium shadow-sm">
+        <div className={`${themeStyle.noticeBg} px-4 py-2.5 rounded-2xl flex items-center justify-between text-xs md:text-sm font-medium shadow-sm`}>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping shrink-0" />
             <span>{settings.bannerNotice}</span>
@@ -194,7 +258,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
             onClick={onOpenMonthlySchedule}
             className="hidden sm:inline-flex items-center gap-1 text-purple-700 hover:text-purple-900 font-semibold underline text-xs ml-3 shrink-0"
           >
-            Lihat Jadwal 1 Bulan <ChevronRight className="w-3.5 h-3.5" />
+            Lihat Jadwal Perawat <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
@@ -202,12 +266,12 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
       {/* Hero Card & Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Main Hero Card with Admin-managed Dashboard Image */}
-        <div className="lg:col-span-7 clay-card bg-gradient-to-br from-pink-50/90 via-purple-50/70 to-indigo-50/90 p-5 md:p-6 relative overflow-hidden flex flex-col justify-between border border-white/80">
+        <div className={`lg:col-span-7 clay-card ${themeStyle.heroGradient} p-5 md:p-6 relative overflow-hidden flex flex-col justify-between border`}>
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative z-10">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 text-purple-700 text-xs font-bold shadow-sm mb-3">
                 <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                <span>Ruang Perawatan Rawat Inap · WITA</span>
+                <span>Ruang Perawatan Rawat Inap</span>
               </div>
               <h1 className="font-display font-black text-2xl md:text-3xl text-slate-800 leading-tight">
                 {selectedShift === 'pagi' && 'Selamat Pagi! ☀️'}
@@ -257,7 +321,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold text-slate-700">Status Sif:</span>
               <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] border ${themeInfo.badgeColor}`}>
-                {selectedConfig.name} ({startDot} - {endDot} WITA)
+                {selectedConfig.name} ({startDot} - {endDot})
               </span>
               {selectedShift !== currentShift ? (
                 <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-semibold border border-amber-200">
@@ -271,13 +335,24 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               )}
             </div>
 
-            <button
-              onClick={onOpenCanva}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#8D6DCF] hover:bg-[#7B59BD] text-white rounded-xl font-bold shadow-md shadow-purple-300 transition-all text-xs"
-            >
-              <Presentation className="w-3.5 h-3.5" />
-              <span>Buka Slide Show TV</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setIsConnectTvOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md shadow-indigo-300 transition-all text-xs"
+                title="Buka panduan & koneksi praktis ke TV"
+              >
+                <Tv className="w-3.5 h-3.5" />
+                <span>Sambungkan ke TV</span>
+              </button>
+
+              <button
+                onClick={onOpenCanva}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 ${themeStyle.btnPrimary} rounded-xl font-bold shadow-md transition-all text-xs`}
+              >
+                <Presentation className="w-3.5 h-3.5" />
+                <span>Buka Tampilan TV</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -363,7 +438,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               Pilihan Sif Perawat Jaga ({todayWitaDate})
             </h3>
             <p className="text-xs text-slate-500">
-              Sistem otomatis menentukan sif aktif berdasarkan waktu WITA ({startDot} - {endDot}).
+              Sistem otomatis menentukan sif aktif berdasarkan jam dinas ({startDot} - {endDot}).
             </p>
           </div>
         </div>
@@ -413,7 +488,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                 {selectedConfig.name} — {assignedNurseCount} Perawat
               </span>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                {startDot} - {endDot} WITA
+                {startDot} - {endDot}
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -427,7 +502,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               className="text-xs font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>{isAdmin ? 'Kelola Roster Sift' : 'Lihat Roster 1 Bulan'}</span>
+              <span>{isAdmin ? 'Kelola Jadwal Perawat' : 'Lihat Jadwal Perawat'}</span>
             </button>
           </div>
         </div>
@@ -440,7 +515,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
               Saat ini belum ada perawat yang dipilih untuk {selectedConfig.name}.
               {isAdmin
-                ? ' Silakan buka kalender roster untuk memilih perawat.'
+                ? ' Silakan buka kalender jadwal perawat untuk memilih perawat.'
                 : ' Hubungi Admin/Kepala Ruangan untuk mengatur penugasan perawat.'}
             </p>
             {isAdmin ? (
@@ -448,7 +523,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                 onClick={onOpenMonthlySchedule}
                 className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-all inline-flex items-center gap-1.5"
               >
-                <span>Atur Roster Sekarang</span>
+                <span>Atur Jadwal Sekarang</span>
               </button>
             ) : (
               <div className="mt-3 text-xs text-purple-600 font-medium">
@@ -504,7 +579,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400">Slide TV Display:</span>
+                        <span className="text-slate-400">Tampilan TV:</span>
                         <span className="font-semibold text-emerald-600 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
                           Slide #{slideNum}
@@ -520,7 +595,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                     </div>
                     <button
                       onClick={onOpenCanva}
-                      title="Lihat di Slide TV"
+                      title="Lihat di Tampilan TV"
                       className="w-7 h-7 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-purple-600 flex items-center justify-center border border-slate-200 transition-colors"
                     >
                       <Presentation className="w-3.5 h-3.5" />
@@ -541,23 +616,27 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
                 <Presentation className="w-4 h-4" />
               </div>
-              <h3 className="font-display font-black text-base">Slide Show TV Otomatis (WITA)</h3>
+              <h3 className="font-display font-black text-base">Tampilan TV Otomatis</h3>
             </div>
             <p className="text-xs text-purple-100 leading-relaxed">
-              Tampilan layar TV ruangan menampilkan perawat yang sedang bertugas ({assignedNurseCount} staf pada {selectedConfig.name}). Berganti otomatis mengikuti waktu WITA.
+              Tampilan layar TV ruangan menampilkan perawat yang sedang bertugas ({assignedNurseCount} staf pada {selectedConfig.name}). Berganti otomatis mengikuti jam dinas.
             </p>
           </div>
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => setIsConnectTvOpen(true)}
+              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>Sambungkan ke TV</span>
+            </button>
             <button
               onClick={onOpenCanva}
               className="px-4 py-2 bg-white text-purple-800 rounded-xl text-xs font-black shadow-md hover:bg-purple-50 transition-all flex items-center gap-1.5"
             >
-              <span>Buka Slide Presentasi</span>
+              <span>Buka Tampilan TV</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[11px] text-purple-200 font-medium">
-              Mode Layar Penuh TV
-            </span>
           </div>
         </div>
 
@@ -593,7 +672,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
         <div>
           <p className="font-semibold text-slate-700">{settings.footerText}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">
-            Jam Kunjungan: <strong className="text-slate-600">{settings.visitingHours}</strong> · Telepon: <strong className="text-rose-600">{settings.emergencyPhone}</strong> · Zona Waktu: <strong className="text-purple-700">WITA (UTC+8)</strong>
+            Jam Kunjungan: <strong className="text-slate-600">{settings.visitingHours}</strong>
           </p>
         </div>
         <div className="text-right shrink-0">
@@ -603,6 +682,15 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
           </span>
         </div>
       </footer>
+
+      {/* Connect TV Modal */}
+      <ConnectTvModal
+        isOpen={isConnectTvOpen}
+        onClose={() => setIsConnectTvOpen(false)}
+        onOpenFullscreen={onOpenCanva}
+        wardName={settings.wardName}
+        hospitalName={settings.hospitalName}
+      />
     </div>
   );
 };

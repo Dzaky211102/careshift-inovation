@@ -225,10 +225,10 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-              Roster Bulanan · WITA
+              Jadwal Perawat Bulanan
             </span>
             <h2 className="font-display font-extrabold text-xl text-slate-800">
-              Jadwal Jaga Perawat 1 Bulan Penuh
+              Jadwal Perawat 1 Bulan Penuh
             </h2>
             {isAdmin ? (
               <span className="text-xs font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300 flex items-center gap-1">
@@ -263,7 +263,7 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
               {monthNames[month]} {year}
             </span>
             <span className="text-[10px] text-purple-600 font-semibold block">
-              {daysInMonth} Hari Terjadwal (WITA)
+              {daysInMonth} Hari Terjadwal
             </span>
           </div>
           <button
@@ -419,7 +419,7 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider block">
-                  Tanggal Terpilih (WITA):
+                  Tanggal Terpilih:
                 </span>
                 <h3 className="font-display font-extrabold text-lg text-slate-800">
                   {selectedDate}
@@ -554,7 +554,7 @@ export const MonthlyScheduleCalendar: React.FC<MonthlyScheduleCalendarProps> = (
               <span>
                 {isAdmin
                   ? 'Perubahan otomatis tersinkronisasi ke seluruh perangkat'
-                  : 'Roster ini tersinkronisasi terpusat (WITA)'}
+                  : 'Roster ini tersinkronisasi terpusat'}
               </span>
               <span className="font-semibold text-purple-700 flex items-center gap-1">
                 <Save className="w-3 h-3" />

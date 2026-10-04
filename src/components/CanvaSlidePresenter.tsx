@@ -20,13 +20,13 @@ import {
   SunMedium,
   Moon,
   Radio,
-  PhoneCall,
   UserCheck,
   CheckCircle2,
   ExternalLink,
 } from 'lucide-react';
 import { Nurse, AppSettings, ShiftConfig } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
+import { ConnectTvModal } from './ConnectTvModal';
 import {
   getWitaTimeString,
   formatWitaFullDate,
@@ -48,10 +48,16 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
   allNurses,
   settings,
 }) => {
+  const [isConnectTvModalOpen, setIsConnectTvModalOpen] = useState(false);
   const [autoFollowShift, setAutoFollowShift] = useState(true);
   const [activeShift, setActiveShift] = useState<string>(currentShift);
   const [displayMode, setDisplayMode] = useState<'slideshow' | 'grid'>('slideshow');
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('mode') === 'tv';
+    }
+    return false;
+  });
   const [isPlaying, setIsPlaying] = useState(true);
   const [slideDurationSec, setSlideDurationSec] = useState(8);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
@@ -260,33 +266,42 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 flex items-center gap-1.5">
               <Tv className="w-3.5 h-3.5 text-purple-600" />
-              Slide Show TV Perawat Jaga
+              Tampilan TV Perawat Jaga
             </span>
             <span
               className={`text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-xs ${shiftTheme.badgeBg}`}
             >
               <ShiftIcon className="w-3.5 h-3.5" />
               <span>
-                {currentConfig.name} ({startDot} - {endDot} WITA)
+                {currentConfig.name} ({startDot} - {endDot})
               </span>
             </span>
             {autoFollowShift && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Otomatis Berganti Tiap Sif (WITA)
+                Otomatis Berganti Tiap Sif
               </span>
             )}
           </div>
           <h2 className={`font-display font-extrabold text-xl mt-1.5 ${isFullScreen ? 'text-white' : 'text-slate-800'}`}>
-            Display TV Ruang Perawatan & Nurse Station
+            Tampilan TV Ruang Perawatan & Nurse Station
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Slide show perawat bertugas ({activeNurses.length} perawat) aktif mengikuti jam WITA.
+            Tampilan perawat bertugas ({activeNurses.length} perawat) aktif.
           </p>
         </div>
 
         {/* Shift Controls */}
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          <button
+            onClick={() => setIsConnectTvModalOpen(true)}
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-300 transition-all flex items-center gap-1.5"
+            title="Sambungkan ke Smart TV Ruangan"
+          >
+            <Tv className="w-3.5 h-3.5" />
+            <span>Sambungkan ke TV</span>
+          </button>
+
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl">
             <button
               onClick={() => {
@@ -298,7 +313,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
                   ? 'bg-purple-700 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
-              title="Mengikuti jam real-time WITA saat ini"
+              title="Mengikuti jam dinas aktif saat ini"
             >
               Auto Sif
             </button>
@@ -332,7 +347,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
               }`}
             >
               <Presentation className="w-3.5 h-3.5" />
-              <span>Slide TV</span>
+              <span>Tampilan TV</span>
             </button>
             <button
               onClick={() => setDisplayMode('grid')}
@@ -510,7 +525,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
                     <span>
-                      PERAWAT JAGA {currentConfig.name.toUpperCase()} ({startDot} - {endDot} WITA)
+                      PERAWAT JAGA {currentConfig.name.toUpperCase()} ({startDot} - {endDot})
                     </span>
                   </div>
 
@@ -549,14 +564,10 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
                     </ul>
                   </div>
 
-                  <div className="pt-1 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-purple-200">
+                  <div className="pt-1 text-xs text-purple-200">
                     <p className="italic text-slate-300 text-xs max-w-md">
                       "{shiftTheme.motto}"
                     </p>
-                    <div className="flex items-center gap-2 bg-rose-500/20 border border-rose-400/40 px-3 py-1.5 rounded-xl text-rose-200 font-bold whitespace-nowrap">
-                      <PhoneCall className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
-                      <span>Hotline: {settings.emergencyPhone}</span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -565,7 +576,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
             {/* Slide Footer */}
             <div className="flex items-center justify-between border-t border-white/10 pt-4 relative z-10 text-xs flex-wrap gap-3">
               <div className="text-purple-300 font-medium">
-                CareShift TV Display System · Ruang Rawat Inap Teratai (WITA)
+                CareShift TV Display System · Ruang Rawat Inap Teratai
               </div>
 
               {/* Dots for all assigned nurses */}
@@ -588,7 +599,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
               </div>
 
               <div className="text-purple-300 font-mono">
-                {currentConfig.name} ({startDot} - {endDot} WITA)
+                {currentConfig.name} ({startDot} - {endDot})
               </div>
             </div>
           </div>
@@ -641,7 +652,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Seluruh perawat yang berdinas pada jam dinas <strong>{startDot} - {endDot} WITA</strong>.
+                  Seluruh perawat yang berdinas pada jam dinas <strong>{startDot} - {endDot}</strong>.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -691,7 +702,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
                       }}
                       className="text-purple-600 hover:text-purple-800 font-bold underline"
                     >
-                      Buka di Slide TV
+                      Buka di Tampilan TV
                     </button>
                   </div>
                 </div>
@@ -700,6 +711,15 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
           </div>
         </div>
       )}
+
+      {/* Connect TV Modal */}
+      <ConnectTvModal
+        isOpen={isConnectTvModalOpen}
+        onClose={() => setIsConnectTvModalOpen(false)}
+        onOpenFullscreen={() => setIsFullScreen(true)}
+        wardName={settings.wardName}
+        hospitalName={settings.hospitalName}
+      />
     </div>
   );
 };

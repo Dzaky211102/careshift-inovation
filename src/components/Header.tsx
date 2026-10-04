@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Clock,
   Calendar,
-  PhoneCall,
   Search,
   ShieldPlus,
   Building2,
@@ -95,19 +94,19 @@ export const Header: React.FC<HeaderProps> = ({
     switch (activeConfig.id) {
       case 'pagi':
         return {
-          label: `${activeConfig.name} (${startFormatted} - ${endFormatted} WITA)`,
+          label: `${activeConfig.name} (${startFormatted} - ${endFormatted})`,
           icon: Sun,
           className: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
         };
       case 'siang':
         return {
-          label: `${activeConfig.name} (${startFormatted} - ${endFormatted} WITA)`,
+          label: `${activeConfig.name} (${startFormatted} - ${endFormatted})`,
           icon: SunMedium,
           className: 'bg-orange-100 text-orange-900 border-orange-300 font-bold',
         };
       default:
         return {
-          label: `${activeConfig.name} (${startFormatted} - ${endFormatted} WITA)`,
+          label: `${activeConfig.name} (${startFormatted} - ${endFormatted})`,
           icon: Moon,
           className: 'bg-indigo-100 text-indigo-900 border-indigo-300 font-bold',
         };
@@ -174,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span className="font-medium">{witaDateStr} (WITA)</span>
+            <span className="font-medium">{witaDateStr}</span>
           </div>
         </div>
       </div>
@@ -201,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({
         </form>
       </div>
 
-      {/* Right: WITA Clock & Admin Access & Hotline */}
+      {/* Right: WITA Clock & Admin Access */}
       <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
         {/* Real-time WITA Clock */}
         <div className="flex items-center gap-2 bg-purple-50/90 border border-purple-200 px-3 py-1.5 rounded-2xl shadow-xs">
@@ -245,12 +244,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
           <Cloud className="w-3.5 h-3.5 text-emerald-600" />
           <span>Realtime Sync</span>
-        </div>
-
-        {/* Emergency Hotline */}
-        <div className="hidden lg:flex items-center gap-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-2xl font-medium shadow-xs">
-          <PhoneCall className="w-3.5 h-3.5 text-rose-500" />
-          <span className="font-extrabold">{emergencyPhone}</span>
         </div>
       </div>
     </header>

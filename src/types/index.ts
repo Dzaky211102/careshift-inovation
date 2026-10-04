@@ -99,6 +99,7 @@ export interface AppSettings {
   canvaEmbedUrl: string;
   themeMode: 'auto' | 'pagi' | 'siang' | 'malam';
   accentColor: string;
+  dashboardColorTheme?: 'purple' | 'teal' | 'blue' | 'emerald' | 'rose' | 'indigo' | string;
   adminPin: string;
   shiftConfigs: ShiftConfig[];
   dashboardImages: DashboardImage[];

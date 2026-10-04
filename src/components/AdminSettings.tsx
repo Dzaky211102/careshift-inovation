@@ -181,7 +181,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       setPinError('');
       setPinInput('');
     } else {
-      setPinError('PIN salah! Silakan coba lagi (PIN bawaan: 1234).');
+      setPinError('PIN salah! Silakan coba lagi.');
     }
   };
 
@@ -490,7 +490,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       diagnosis: patientForm.diagnosis.trim() || 'Observasi Medis',
       doctorName: patientForm.doctorName.trim() || 'Dokter Spesialis DPJP',
       procedureName: patientForm.procedureName.trim() || 'Rencana Tindakan Medis',
-      procedureDate: patientForm.procedureDate.trim() || 'Sesuai Jadwal Ruangan (WITA)',
+      procedureDate: patientForm.procedureDate.trim() || 'Sesuai Jadwal Ruangan',
       stage: patientForm.stage,
       allergies: patientForm.allergies.trim() || 'Tidak Ada Data Alergi',
       notes: patientForm.notes.trim() || 'Instruksi perawat ruangan.',
@@ -603,7 +603,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 maxLength={6}
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
-                placeholder="Masukkan PIN Admin (Bawaan: 1234)"
+                placeholder="Masukkan PIN Admin"
                 className="w-full text-center tracking-widest text-lg font-mono py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-purple-400 shadow-inner"
               />
             </div>
@@ -660,7 +660,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       {/* Admin Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {[
-          { id: 'shift_settings', label: 'Pengaturan Sift (Jam WITA)', icon: Clock, badge: 'Penting' },
+          { id: 'shift_settings', label: 'Pengaturan Jam Sif', icon: Clock, badge: 'Penting' },
           { id: 'dashboard_images', label: 'Gambar Dashboard', icon: ImageIcon, badge: `${generalForm.dashboardImages?.length || 0}` },
           { id: 'perawat', label: 'Daftar Perawat', icon: Users, badge: `${nurses.length}` },
           { id: 'pasien_csv', label: 'Pasien & CSV', icon: FileSpreadsheet, badge: `${patients.length}` },
@@ -703,11 +703,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
                 <h3 className="font-display font-extrabold text-lg text-slate-800">
-                  Pengaturan Jam Dinas Sif Perawat (WITA)
+                  Pengaturan Jam Dinas Sif Perawat
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
-                Admin bebas menentukan jam mulai dan jam selesai untuk setiap sift. Sistem otomatis mendeteksi sift yang aktif berdasarkan waktu <strong>WITA (UTC+8)</strong>. Mendukung sift malam yang melewati tengah malam (misal 21.00 - 07.00).
+                Admin bebas menentukan jam mulai dan jam selesai untuk setiap sift. Sistem otomatis mendeteksi sift yang aktif berdasarkan waktu dinas. Mendukung sift malam yang melewati tengah malam (misal 21.00 - 07.00).
               </p>
             </div>
 
@@ -777,7 +777,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         </span>
                       </div>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white border border-purple-200 text-purple-700 font-bold">
-                        {sDot} - {eDot} WITA
+                        {sDot} - {eDot}
                       </span>
                     </div>
 
@@ -812,7 +812,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                           className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono font-bold text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
                         />
                         <span className="text-[10px] text-slate-400 mt-0.5 block">
-                          Format: {sDot} WITA
+                          Format: {sDot}
                         </span>
                       </div>
 
@@ -830,7 +830,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                           className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-mono font-bold text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
                         />
                         <span className="text-[10px] text-slate-400 mt-0.5 block">
-                          Format: {eDot} WITA
+                          Format: {eDot}
                         </span>
                       </div>
                     </div>
@@ -1527,7 +1527,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
               <div>
                 <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Tanggal & Jam (WITA):
+                  Tanggal & Jam Prosedur:
                 </label>
                 <input
                   type="text"
@@ -1535,7 +1535,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   onChange={(e) =>
                     setPatientForm((p) => ({ ...p, procedureDate: e.target.value }))
                   }
-                  placeholder="2026-10-04 10:00 WITA"
+                  placeholder="2026-10-04 10:00"
                   className="w-full px-3 py-1.5 bg-white border border-purple-200 rounded-xl text-xs text-slate-800"
                 />
               </div>
@@ -1878,11 +1878,100 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           >
             <div>
               <h3 className="font-display font-extrabold text-lg text-slate-800">
-                Identitas Rumah Sakit, Logo & Footer (WITA)
+                Identitas Rumah Sakit, Logo & Footer
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Sesuaikan logo rumah sakit, logo dinas/instansi, sapaan waktu, dan informasi kontak.
+                Sesuaikan logo rumah sakit, logo dinas/instansi, tema warna dashboard, dan informasi ruangan.
               </p>
+            </div>
+
+            {/* Dashboard Color Theme Settings */}
+            <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-200 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <Palette className="w-4 h-4 text-purple-600" />
+                    <span>Tema Warna Dashboard</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Pilih palet warna tema untuk kartu, aksen tombol, dan tampilan dashboard
+                  </p>
+                </div>
+                <span
+                  className="px-2.5 py-1 rounded-full text-white text-[11px] font-bold shadow-xs capitalize"
+                  style={{ backgroundColor: generalForm.accentColor || '#9333EA' }}
+                >
+                  {generalForm.dashboardColorTheme || 'Ungu'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                {[
+                  { id: 'purple', name: 'Ungu Lavender', hex: '#9333EA', bg: 'bg-purple-600' },
+                  { id: 'teal', name: 'Toska Medis', hex: '#0D9488', bg: 'bg-teal-600' },
+                  { id: 'blue', name: 'Biru Klinis', hex: '#2563EB', bg: 'bg-blue-600' },
+                  { id: 'emerald', name: 'Hijau Sehat', hex: '#059669', bg: 'bg-emerald-600' },
+                  { id: 'rose', name: 'Mawar Lembut', hex: '#E11D48', bg: 'bg-rose-600' },
+                  { id: 'indigo', name: 'Indigo Modern', hex: '#4F46E5', bg: 'bg-indigo-600' },
+                ].map((th) => {
+                  const isSelected =
+                    generalForm.dashboardColorTheme === th.id ||
+                    (!generalForm.dashboardColorTheme && th.id === 'purple') ||
+                    generalForm.accentColor === th.hex;
+
+                  return (
+                    <button
+                      key={th.id}
+                      type="button"
+                      onClick={() => {
+                        const updated = {
+                          ...generalForm,
+                          dashboardColorTheme: th.id,
+                          accentColor: th.hex,
+                        };
+                        setGeneralForm(updated);
+                        onUpdateSettings(updated);
+                        StorageService.saveSettings(updated);
+                      }}
+                      className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-2 ${
+                        isSelected
+                          ? 'bg-white ring-2 ring-purple-600 shadow-md font-bold'
+                          : 'bg-white/80 hover:bg-white border-purple-100 hover:border-purple-300'
+                      }`}
+                    >
+                      <span className={`w-8 h-8 rounded-full ${th.bg} shadow-md flex items-center justify-center text-white`}>
+                        {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+                      </span>
+                      <span className="text-[11px] text-slate-800 leading-tight">
+                        {th.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Hex Picker */}
+              <div className="flex items-center gap-3 pt-2 border-t border-purple-200/50">
+                <span className="text-[11px] font-bold text-slate-600">Atau Pilih Warna Kustom:</span>
+                <input
+                  type="color"
+                  value={generalForm.accentColor || '#9333EA'}
+                  onChange={(e) => {
+                    const updated = {
+                      ...generalForm,
+                      accentColor: e.target.value,
+                      dashboardColorTheme: 'custom',
+                    };
+                    setGeneralForm(updated);
+                    onUpdateSettings(updated);
+                    StorageService.saveSettings(updated);
+                  }}
+                  className="w-8 h-8 rounded-lg cursor-pointer border border-slate-300"
+                />
+                <span className="text-xs font-mono font-bold text-slate-700">
+                  {generalForm.accentColor || '#9333EA'}
+                </span>
+              </div>
             </div>
 
             {/* Logo Settings */}
@@ -1981,7 +2070,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Jam Kunjungan Keluarga (WITA):
+                  Jam Kunjungan Keluarga:
                 </label>
                 <input
                   type="text"
@@ -1990,20 +2079,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     setGeneralForm((p) => ({ ...p, visitingHours: e.target.value }))
                   }
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Nomor Telepon Darurat Ruangan:
-                </label>
-                <input
-                  type="text"
-                  value={generalForm.emergencyPhone}
-                  onChange={(e) =>
-                    setGeneralForm((p) => ({ ...p, emergencyPhone: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold"
                 />
               </div>
 

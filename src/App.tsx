@@ -27,7 +27,15 @@ export default function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Active navigation tab
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'tv') {
+        return 'canva';
+      }
+    }
+    return 'dashboard';
+  });
   const [patientSearchQuery, setPatientSearchQuery] = useState<string>('');
 
   // WITA Active Shift state (Requirement 1 & 3)

@@ -13,13 +13,13 @@ import {
 import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings } from '../types';
 
 export const firebaseConfig = {
-  projectId: 'swift-totem-0cbh2',
-  appId: '1:1075833500315:web:c6969ff8ba294020ca8c3e',
-  apiKey: 'AIzaSyDf7skq07xqeiQasx0X_xYoQZ1S2z5vENs',
-  authDomain: 'swift-totem-0cbh2.firebaseapp.com',
-  firestoreDatabaseId: 'ai-studio-careshiftjadwalp-f4ef0a13-d893-49b3-831a-e7266cff7b7e',
-  storageBucket: 'swift-totem-0cbh2.firebasestorage.app',
-  messagingSenderId: '1075833500315',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'swift-totem-0cbh2',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1075833500315:web:c6969ff8ba294020ca8c3e',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDf7skq07xqeiQasx0X_xYoQZ1S2z5vENs',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'swift-totem-0cbh2.firebaseapp.com',
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-careshiftjadwalp-f4ef0a13-d893-49b3-831a-e7266cff7b7e',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'swift-totem-0cbh2.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1075833500315',
   measurementId: '',
   oAuthClientId: '1075833500315-e23t434vmh0bl7u4ih2ac1v37bqisv4d.apps.googleusercontent.com',
   recaptchaSiteKey: '',

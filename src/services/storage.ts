@@ -107,6 +107,7 @@ export class StorageService {
           ...parsed,
           shiftConfigs: parsed.shiftConfigs || DEFAULT_SETTINGS.shiftConfigs,
           dashboardImages: parsed.dashboardImages || DEFAULT_SETTINGS.dashboardImages,
+          dashboardColorTheme: parsed.dashboardColorTheme || DEFAULT_SETTINGS.dashboardColorTheme || 'purple',
         };
       }
     } catch {

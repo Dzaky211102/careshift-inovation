@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   ShieldAlert,
   Sparkles,
-  Download,
   Lock,
   LockOpen,
 } from 'lucide-react';
@@ -36,8 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Sif Hari Ini', icon: House, badge: 'Live' },
-    { id: 'monthly', label: 'Jadwal 1 Bulan', icon: CalendarDays, badge: 'Roster' },
-    { id: 'canva', label: 'Slide Show TV', icon: Presentation, badge: 'Otomatis' },
+    { id: 'monthly', label: 'Jadwal Perawat', icon: CalendarDays, badge: 'Roster' },
+    { id: 'canva', label: 'Tampilan TV', icon: Presentation, badge: 'Otomatis' },
     { id: 'patient', label: 'Panduan Pasien', icon: HeartHandshake, badge: 'Edukasi' },
     { id: 'settings', label: 'Pengaturan Admin', icon: Settings, badge: 'Admin' },
   ];
@@ -152,19 +151,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
         </nav>
-
-        {/* Download Standalone App */}
-        <div className="mt-4 pt-3 border-t border-white/20">
-          <a
-            href="/careshift_app.html"
-            download="careshift_aplikasi.html"
-            className="w-full py-2.5 px-3 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-white/30 shadow-sm"
-            title="Unduh seluruh aplikasi CareShift sebagai file HTML mandiri"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Unduh Offline (.html)</span>
-          </a>
-        </div>
       </div>
 
       {/* Ward Info Bottom Card */}
@@ -185,7 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </p>
           <div className="flex items-center justify-center gap-1 mt-1 text-[10px] text-purple-100">
             <ShieldCheck className="w-3 h-3" />
-            <span>Zona Waktu WITA (UTC+8)</span>
+            <span>Waktu Standar Ruangan</span>
           </div>
         </div>
       </div>

@@ -423,6 +423,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   canvaEmbedUrl: 'https://www.canva.com/design/DAHWr4gdNZ8/KCDVl3LiqfMrMhTgPuwwvw/view?embed',
   themeMode: 'auto',
   accentColor: '#9333EA',
+  dashboardColorTheme: 'purple',
   adminPin: '1234',
   shiftConfigs: DEFAULT_SHIFT_CONFIGS,
   dashboardImages: DEFAULT_DASHBOARD_IMAGES,

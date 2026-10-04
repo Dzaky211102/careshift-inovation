@@ -130,7 +130,7 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 flex items-center gap-1">
               <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-              Portal Pasien Rawat Inap & Bedah (WITA)
+              Portal Pasien Rawat Inap & Bedah
             </span>
             <h2 className="font-display font-extrabold text-xl text-slate-800">
               Panduan Edukasi Operasi & Perawatan Pasien
