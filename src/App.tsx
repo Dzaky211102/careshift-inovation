@@ -261,6 +261,7 @@ export default function App() {
                 nurses={nurses}
                 patients={patients}
                 settings={settings}
+                schedules={schedules}
                 isAdmin={isAdmin}
                 onOpenCanva={() => setActiveTab('canva')}
                 onOpenPatientPortal={(rmOrName) => {
@@ -292,6 +293,7 @@ export default function App() {
                 assignedNurseIds={liveAssignedIds}
                 allNurses={nurses}
                 settings={settings}
+                schedules={schedules}
                 onUpdateSettings={handleUpdateSettings}
                 onUpdateAllNurses={handleUpdateNurses}
               />

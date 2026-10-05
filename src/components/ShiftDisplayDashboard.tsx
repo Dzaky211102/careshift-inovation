@@ -18,9 +18,11 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Lock,
+  Usb,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConnectTvModal } from './ConnectTvModal';
+import { UsbFlashdiskModal } from './UsbFlashdiskModal';
 import { Nurse, Patient, AppSettings, ShiftDuty, ShiftConfig } from '../types';
 import {
   getWitaDateString,
@@ -36,6 +38,7 @@ interface ShiftDisplayDashboardProps {
   nurses: Nurse[];
   patients: Patient[];
   settings: AppSettings;
+  schedules?: ShiftDuty[];
   isAdmin: boolean;
   onOpenCanva: () => void;
   onOpenPatientPortal: (rmOrName?: string) => void;
@@ -51,6 +54,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
   nurses,
   patients,
   settings,
+  schedules = [],
   isAdmin,
   onOpenCanva,
   onOpenPatientPortal,
@@ -58,6 +62,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
   onOpenImageSettings,
 }) => {
   const [isConnectTvOpen, setIsConnectTvOpen] = useState(false);
+  const [isUsbModalOpen, setIsUsbModalOpen] = useState(false);
   const todayWitaDate = getWitaDateString(new Date());
 
   // Requirement 5: Synchronized nurse list directly from duty nurseIds
@@ -346,6 +351,15 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               </button>
 
               <button
+                onClick={() => setIsUsbModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-md shadow-amber-300 transition-all text-xs"
+                title="Unduh paket slide 1080p untuk TV biasa (putar via Flashdisk USB)"
+              >
+                <Usb className="w-3.5 h-3.5" />
+                <span>Paket Flashdisk TV</span>
+              </button>
+
+              <button
                 onClick={onOpenCanva}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 ${themeStyle.btnPrimary} rounded-xl font-bold shadow-md transition-all text-xs`}
               >
@@ -631,6 +645,14 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               <span>Sambungkan ke TV</span>
             </button>
             <button
+              onClick={() => setIsUsbModalOpen(true)}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
+              title="Unduh paket slide untuk TV biasa (putar via Flashdisk USB)"
+            >
+              <Usb className="w-3.5 h-3.5" />
+              <span>Paket Flashdisk TV</span>
+            </button>
+            <button
               onClick={onOpenCanva}
               className="px-4 py-2 bg-white text-purple-800 rounded-xl text-xs font-black shadow-md hover:bg-purple-50 transition-all flex items-center gap-1.5"
             >
@@ -688,8 +710,19 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
         isOpen={isConnectTvOpen}
         onClose={() => setIsConnectTvOpen(false)}
         onOpenFullscreen={onOpenCanva}
+        onOpenUsbFlashdisk={() => setIsUsbModalOpen(true)}
         wardName={settings.wardName}
         hospitalName={settings.hospitalName}
+      />
+
+      {/* USB Flashdisk Modal */}
+      <UsbFlashdiskModal
+        isOpen={isUsbModalOpen}
+        onClose={() => setIsUsbModalOpen(false)}
+        nurses={nurses}
+        schedules={schedules}
+        settings={settings}
+        currentShift={selectedShift}
       />
     </div>
   );

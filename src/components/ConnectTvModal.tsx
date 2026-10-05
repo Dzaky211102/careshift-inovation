@@ -12,12 +12,14 @@ import {
   Sun,
   ShieldCheck,
   Flame,
+  Usb,
 } from 'lucide-react';
 
 interface ConnectTvModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenFullscreen: () => void;
+  onOpenUsbFlashdisk?: () => void;
   wardName: string;
   hospitalName: string;
 }
@@ -26,6 +28,7 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
   isOpen,
   onClose,
   onOpenFullscreen,
+  onOpenUsbFlashdisk,
   wardName,
   hospitalName,
 }) => {
@@ -169,6 +172,37 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
               <span>{copied ? 'Tersalin!' : 'Salin Link'}</span>
             </button>
           </div>
+
+          {/* Action 4: Non-Smart TV / USB Flashdisk Playback */}
+          <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-300 flex items-center justify-between gap-3 hover:bg-amber-100/70 transition-colors">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                <Usb className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="font-bold text-xs text-slate-800">4. TV Biasa (Bukan Smart TV) - Flashdisk USB</h4>
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-200 text-amber-900">
+                    Solusi Praktis
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 truncate">
+                  Unduh paket foto slide 1080p untuk dicolokkan dan diputar langsung lewat port USB TV
+                </p>
+              </div>
+            </div>
+            {onOpenUsbFlashdisk && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenUsbFlashdisk();
+                }}
+                className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all whitespace-nowrap"
+              >
+                Paket USB
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Prevent TV Sleep / Wake Lock */}
@@ -202,14 +236,17 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
         <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
           <p className="font-bold text-slate-800 flex items-center gap-1">
             <Cast className="w-3.5 h-3.5 text-purple-600" />
-            <span>Cara Menyambungkan Nirkabel (Cast ke TV):</span>
+            <span>Cara Menyambungkan ke TV:</span>
           </p>
           <ul className="text-[11px] text-slate-500 space-y-1 list-disc list-inside">
             <li>
-              <strong>Google Chrome / Edge</strong>: Klik titik tiga (⋮) di kanan atas browser → pilih <strong>"Transmisikan / Cast..."</strong> → pilih Smart TV Anda.
+              <strong>TV Biasa (Flashdisk USB)</strong>: Klik tombol <em>"Paket USB"</em> di atas untuk mengunduh foto slide 1080p, salin ke Flashdisk, lalu tancapkan ke port USB TV dan tekan Play di remote TV.
             </li>
             <li>
-              <strong>Kabel HDMI</strong>: Hubungkan laptop ke TV, tekan tombol <strong>"Buka Jendela Khusus TV"</strong> lalu geser ke TV dan tekan F11 untuk layar penuh.
+              <strong>Smart TV (Browser / Cast)</strong>: Buka browser bawaan TV atau gunakan tombol <em>"Transmisikan / Cast"</em> di browser Chrome/Edge.
+            </li>
+            <li>
+              <strong>Kabel HDMI</strong>: Hubungkan laptop ke TV, klik <em>"Buka TV"</em> lalu geser ke layar TV dan tekan F11.
             </li>
           </ul>
         </div>

@@ -23,10 +23,12 @@ import {
   UserCheck,
   CheckCircle2,
   ExternalLink,
+  Usb,
 } from 'lucide-react';
-import { Nurse, AppSettings, ShiftConfig } from '../types';
+import { Nurse, AppSettings, ShiftConfig, ShiftDuty } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConnectTvModal } from './ConnectTvModal';
+import { UsbFlashdiskModal } from './UsbFlashdiskModal';
 import {
   getWitaTimeString,
   formatWitaFullDate,
@@ -38,6 +40,7 @@ interface CanvaSlidePresenterProps {
   assignedNurseIds: string[];
   allNurses: Nurse[];
   settings: AppSettings;
+  schedules?: ShiftDuty[];
   onUpdateSettings?: (settings: AppSettings) => void;
   onUpdateAllNurses?: (nurses: Nurse[]) => void;
 }
@@ -47,8 +50,10 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
   assignedNurseIds,
   allNurses,
   settings,
+  schedules = [],
 }) => {
   const [isConnectTvModalOpen, setIsConnectTvModalOpen] = useState(false);
+  const [isUsbModalOpen, setIsUsbModalOpen] = useState(false);
   const [autoFollowShift, setAutoFollowShift] = useState(true);
   const [activeShift, setActiveShift] = useState<string>(currentShift);
   const [displayMode, setDisplayMode] = useState<'slideshow' | 'grid'>('slideshow');
@@ -300,6 +305,15 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
           >
             <Tv className="w-3.5 h-3.5" />
             <span>Sambungkan ke TV</span>
+          </button>
+
+          <button
+            onClick={() => setIsUsbModalOpen(true)}
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-300 transition-all flex items-center gap-1.5"
+            title="Unduh paket slide 1080p untuk TV biasa (putar via Flashdisk USB)"
+          >
+            <Usb className="w-3.5 h-3.5" />
+            <span>Paket Flashdisk TV</span>
           </button>
 
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl">
@@ -717,8 +731,19 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
         isOpen={isConnectTvModalOpen}
         onClose={() => setIsConnectTvModalOpen(false)}
         onOpenFullscreen={() => setIsFullScreen(true)}
+        onOpenUsbFlashdisk={() => setIsUsbModalOpen(true)}
         wardName={settings.wardName}
         hospitalName={settings.hospitalName}
+      />
+
+      {/* USB Flashdisk Modal for Non-Smart TV */}
+      <UsbFlashdiskModal
+        isOpen={isUsbModalOpen}
+        onClose={() => setIsUsbModalOpen(false)}
+        nurses={allNurses}
+        schedules={schedules}
+        settings={settings}
+        currentShift={effectiveShift}
       />
     </div>
   );
