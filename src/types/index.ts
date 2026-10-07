@@ -66,6 +66,25 @@ export interface Patient {
   checklist?: PatientChecklistItem[];
 }
 
+export type MediaAspectRatio = '16:9' | '4:3' | '1:1' | '9:16' | '21:9' | 'auto';
+export type MediaDisplaySize = 'small' | 'medium' | 'large' | 'full';
+export type MediaPlacement = 'top' | 'middle' | 'bottom' | 'step';
+export type MediaType = 'image' | 'video' | 'gif';
+export type MediaResolution = 'auto' | 'sd_480p' | 'hd_720p' | 'fhd_1080p' | '4k_2160p';
+
+export interface EducationMediaItem {
+  id: string;
+  type: MediaType; // 'image' | 'video' | 'gif'
+  url: string; // URL, Base64, or Embed
+  caption?: string; // Keterangan foto/video/gif
+  aspectRatio: MediaAspectRatio; // '16:9' | '4:3' | '1:1' | '9:16' | '21:9' | 'auto'
+  size: MediaDisplaySize; // 'small' | 'medium' | 'large' | 'full'
+  resolution?: MediaResolution; // Pilihan resolusi / ketajaman kualitas
+  placement: MediaPlacement; // 'top' | 'middle' | 'bottom' | 'step'
+  stepIndex?: number; // nomor langkah (0, 1, 2...) bila placement === 'step'
+  alignment?: 'center' | 'left' | 'right';
+}
+
 export interface EducationArticle {
   id: string;
   category: 'sebelum_operasi' | 'setelah_operasi' | 'perawatan_luka' | 'umum';
@@ -74,6 +93,7 @@ export interface EducationArticle {
   content: string[];
   imageUrl?: string;
   videoUrl?: string;
+  mediaItems?: EducationMediaItem[]; // Rich multi-media list with custom placement, aspect-ratio & size
   externalLink?: {
     title: string;
     url: string;

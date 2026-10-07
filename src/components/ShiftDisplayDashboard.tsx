@@ -281,12 +281,12 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                 <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                 <span>Ruang Perawatan Rawat Inap</span>
               </div>
-              <h1 className="font-display font-black text-2xl md:text-3xl text-slate-800 leading-tight">
+              <h1 className="font-display font-black text-2xl md:text-3xl text-slate-950 leading-tight">
                 {selectedShift === 'pagi' && 'Selamat Pagi! ☀️'}
                 {selectedShift === 'siang' && 'Selamat Siang! 🌤️'}
                 {selectedShift === 'malam' && 'Selamat Malam! 🌙'}
               </h1>
-              <p className="text-slate-600 text-sm mt-1 max-w-sm font-medium">
+              <p className="text-slate-900 text-sm mt-1 max-w-sm font-bold">
                 {getGreeting()}
               </p>
             </div>
@@ -376,17 +376,17 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
         {/* 3 Summary Stats Cards */}
         <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
           {/* Requirement 4 & 5: Dynamic Nurse Count directly from assigned nurses */}
-          <div className="clay-card-flat bg-white p-4 flex items-center justify-between border border-purple-100 hover:shadow-md transition-shadow">
+          <div className="clay-card-flat bg-white p-4 flex items-center justify-between border-2 border-purple-200 hover:shadow-md transition-shadow">
             <div>
-              <span className="text-xs font-semibold text-slate-500 block">
+              <span className="text-xs font-black text-slate-800 block">
                 Perawat Jaga Sif Ini
               </span>
-              <div className="text-2xl font-black text-slate-800 font-display tabular-nums mt-1">
+              <div className="text-2xl font-black text-slate-950 font-display tabular-nums mt-1">
                 {assignedNurseCount}{' '}
-                <span className="text-xs font-bold text-purple-700">Perawat Bertugas</span>
+                <span className="text-xs font-black text-purple-800">Perawat Bertugas</span>
               </div>
-              <div className="text-[11px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
+              <div className="text-[11px] text-emerald-800 font-bold mt-0.5 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span>
                   {assignedNurseCount > 0
                     ? `Siaga ${assignedNurseCount} staf di ruangan`
@@ -394,35 +394,35 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                 </span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-600 shadow-inner shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 shadow-inner shrink-0">
               <Users className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="clay-card-flat bg-white p-4 flex items-center justify-between border border-pink-100 hover:shadow-md transition-shadow">
+          <div className="clay-card-flat bg-white p-4 flex items-center justify-between border-2 border-pink-200 hover:shadow-md transition-shadow">
             <div>
-              <span className="text-xs font-semibold text-slate-500 block">
+              <span className="text-xs font-black text-slate-800 block">
                 Pasien Tindakan Bedah
               </span>
-              <div className="text-2xl font-black text-slate-800 font-display tabular-nums mt-1">
+              <div className="text-2xl font-black text-slate-950 font-display tabular-nums mt-1">
                 {surgicalPatients.length}{' '}
-                <span className="text-xs font-medium text-slate-400">Pasien</span>
+                <span className="text-xs font-bold text-slate-700">Pasien</span>
               </div>
-              <div className="text-[11px] text-rose-600 font-semibold mt-0.5 flex items-center gap-1">
+              <div className="text-[11px] text-rose-800 font-bold mt-0.5 flex items-center gap-1">
                 <span>Jadwal Operasi Hari Ini</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 shadow-inner shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-700 shadow-inner shrink-0">
               <Heart className="w-6 h-6" />
             </div>
           </div>
 
-          <div className="clay-card-flat bg-white p-4 flex items-center justify-between border border-emerald-100 hover:shadow-md transition-shadow">
+          <div className="clay-card-flat bg-white p-4 flex items-center justify-between border-2 border-emerald-200 hover:shadow-md transition-shadow">
             <div>
-              <span className="text-xs font-semibold text-slate-500 block">
+              <span className="text-xs font-black text-slate-800 block">
                 Layanan Home Care
               </span>
-              <div className="text-lg font-black text-slate-800 font-display mt-0.5">
+              <div className="text-lg font-black text-slate-950 font-display mt-0.5">
                 Siap Melayani
               </div>
               <a

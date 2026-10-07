@@ -336,6 +336,7 @@ export default function App() {
                 educationArticles={educationArticles}
                 settings={settings}
                 isAdmin={isAdmin}
+                onUpdateEducation={handleUpdateEducation}
                 onOpenAdminSettings={() => setActiveTab('settings')}
                 onOpenPatientPortal={() => setActiveTab('patient')}
               />

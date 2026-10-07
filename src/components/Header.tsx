@@ -160,8 +160,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="font-display font-bold text-sm md:text-base text-slate-800 leading-tight">
-              {hospitalName} · <span className="text-purple-700 font-extrabold">{wardName}</span>
+            <h2 className="font-display font-black text-sm md:text-base text-slate-950 leading-tight">
+              {hospitalName} · <span className="text-purple-800 font-black">{wardName}</span>
             </h2>
             <span
               className={`text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${shiftInfo.className}`}
@@ -171,9 +171,9 @@ export const Header: React.FC<HeaderProps> = ({
               {shiftInfo.label}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span className="font-medium">{witaDateStr}</span>
+          <div className="flex items-center gap-2 text-xs text-slate-700 font-bold mt-0.5">
+            <Calendar className="w-3.5 h-3.5 text-slate-600" />
+            <span>{witaDateStr}</span>
           </div>
         </div>
       </div>
@@ -189,13 +189,13 @@ export const Header: React.FC<HeaderProps> = ({
           }}
           className="relative"
         >
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Cari No. RM atau Nama Pasien..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200/80 rounded-2xl text-xs md:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all shadow-inner font-medium"
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 hover:bg-slate-100 focus:bg-white border-2 border-slate-200 focus:border-purple-600 rounded-2xl text-xs md:text-sm text-slate-950 placeholder:text-slate-500 focus:outline-none transition-all shadow-inner font-bold"
           />
         </form>
       </div>
