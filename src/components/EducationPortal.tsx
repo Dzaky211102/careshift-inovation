@@ -63,6 +63,7 @@ interface EducationPortalProps {
 // Helper to convert YouTube watch/short URLs into standard embed URLs
 function formatVideoEmbedUrl(url: string): string {
   if (!url) return '';
+  if (url.startsWith('data:video/') || url.startsWith('blob:')) return url;
   const trimmed = url.trim();
   if (trimmed.includes('youtube.com/embed/')) return trimmed;
 
@@ -125,6 +126,8 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
     externalUrl: '',
     tags: '',
   });
+
+  const [uploadingEditorMediaId, setUploadingEditorMediaId] = useState<string | null>(null);
 
   // Filtered Articles
   const filteredArticles = useMemo(() => {
@@ -351,6 +354,7 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
   const handleMediaFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadingEditorMediaId(id);
 
     try {
       const { url, warning } = await processMediaUpload(file);
@@ -366,7 +370,10 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setUploadingEditorMediaId(null);
     }
+    e.target.value = '';
   };
 
   const handleSaveEditor = (e: React.FormEvent) => {
@@ -502,8 +509,13 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
 
     const isVideo = item.type === 'video';
     const isGif = item.type === 'gif';
-    const embedUrl = isVideo ? formatVideoEmbedUrl(item.url) : '';
-    const isDirectVideo = isVideo && (item.url.endsWith('.mp4') || item.url.endsWith('.webm'));
+    const isDirectVideo =
+      isVideo &&
+      (item.url.startsWith('data:video/') ||
+        item.url.startsWith('blob:') ||
+        /\.(mp4|webm|ogg|mov|m4v)($|\?)/i.test(item.url) ||
+        (!item.url.includes('youtube.com') && !item.url.includes('youtu.be') && !item.url.includes('vimeo.com')));
+    const embedUrl = isVideo && !isDirectVideo ? formatVideoEmbedUrl(item.url) : '';
 
     return (
       <div
@@ -1205,13 +1217,25 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
                     <span>Video Edukasi Klinis:</span>
                   </span>
                   <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-lg border border-purple-200 bg-black">
-                    <iframe
-                      src={formatVideoEmbedUrl(selectedArticle.videoUrl)}
-                      title={selectedArticle.title}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                    {selectedArticle.videoUrl.startsWith('data:video/') ||
+                    selectedArticle.videoUrl.startsWith('blob:') ||
+                    /\.(mp4|webm|ogg|mov|m4v)($|\?)/i.test(selectedArticle.videoUrl) ||
+                    (!selectedArticle.videoUrl.includes('youtube.com') && !selectedArticle.videoUrl.includes('youtu.be')) ? (
+                      <video
+                        src={selectedArticle.videoUrl}
+                        controls
+                        playsInline
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <iframe
+                        src={formatVideoEmbedUrl(selectedArticle.videoUrl)}
+                        title={selectedArticle.title}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -1496,7 +1520,7 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
                       className="px-3 py-1.5 bg-white hover:bg-rose-100 text-rose-950 rounded-xl text-xs font-black border-2 border-rose-300 transition-colors flex items-center gap-1 shadow-2xs"
                     >
                       <Video className="w-3.5 h-3.5 text-rose-700" />
-                      <span>+ Video (YouTube)</span>
+                      <span>+ Video (Unggah MP4 / YouTube)</span>
                     </button>
                   </div>
                 </div>
@@ -1570,30 +1594,54 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
                           <label className="text-[11px] font-black text-slate-800 block mb-1">
                             Sumber Berkas (Unggah dari HP/PC atau Tempel URL):
                           </label>
-                          <div className="flex items-center gap-2">
-                            {m.type !== 'video' && (
-                              <label className="px-3 py-2 bg-purple-100 hover:bg-purple-200 border-2 border-purple-300 text-purple-950 rounded-xl text-xs font-black cursor-pointer shrink-0 flex items-center gap-1 shadow-2xs">
-                                <Upload className="w-3.5 h-3.5" />
-                                <span>Unggah Berkas</span>
-                                <input
-                                  type="file"
-                                  accept={m.type === 'gif' ? 'image/gif' : 'image/*'}
-                                  onChange={(e) => handleMediaFileUpload(e, m.id)}
-                                  className="hidden"
-                                />
-                              </label>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              {m.type === 'video' ? (
+                                <label className="px-3 py-2 bg-rose-100 hover:bg-rose-200 border-2 border-rose-300 text-rose-950 rounded-xl text-xs font-black cursor-pointer shrink-0 flex items-center gap-1.5 shadow-2xs transition-colors">
+                                  <Video className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>
+                                    {uploadingEditorMediaId === m.id ? 'Memproses Video...' : 'Unggah Video'}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*"
+                                    disabled={uploadingEditorMediaId === m.id}
+                                    onChange={(e) => handleMediaFileUpload(e, m.id)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              ) : (
+                                <label className="px-3 py-2 bg-purple-100 hover:bg-purple-200 border-2 border-purple-300 text-purple-950 rounded-xl text-xs font-black cursor-pointer shrink-0 flex items-center gap-1 shadow-2xs transition-colors">
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>
+                                    {uploadingEditorMediaId === m.id ? 'Memproses...' : 'Unggah Berkas'}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept={m.type === 'gif' ? 'image/gif' : 'image/*'}
+                                    disabled={uploadingEditorMediaId === m.id}
+                                    onChange={(e) => handleMediaFileUpload(e, m.id)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              )}
+                              <input
+                                type="url"
+                                value={m.url}
+                                onChange={(e) => handleUpdateMediaItem(m.id, 'url', e.target.value)}
+                                placeholder={
+                                  m.type === 'video'
+                                    ? 'Atau tempel tautan video YouTube (https://...) / video online'
+                                    : 'Atau tempel URL gambar / GIF online (https://...)'
+                                }
+                                className="w-full px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-950"
+                              />
+                            </div>
+                            {m.type === 'video' && (
+                              <p className="text-[11px] text-rose-700 font-bold flex items-center gap-1">
+                                <span>💡 Tempat unggah video: Klik tombol "Unggah Video" di atas (MP4/WebM) atau tempel link YouTube.</span>
+                              </p>
                             )}
-                            <input
-                              type="url"
-                              value={m.url}
-                              onChange={(e) => handleUpdateMediaItem(m.id, 'url', e.target.value)}
-                              placeholder={
-                                m.type === 'video'
-                                  ? 'Link YouTube: https://www.youtube.com/watch?v=... atau https://youtu.be/...'
-                                  : 'Atau tempel URL gambar / GIF online (https://...)'
-                              }
-                              className="w-full px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-950"
-                            />
                           </div>
                         </div>
                       </div>
@@ -1716,9 +1764,18 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
                           <span className="text-[10px] font-black text-slate-600 uppercase">Pratinjau:</span>
                           <div className="w-16 h-12 rounded-lg bg-black overflow-hidden relative border border-slate-300 shrink-0">
                             {m.type === 'video' ? (
-                              <div className="w-full h-full flex items-center justify-center text-white bg-rose-900 text-[10px] font-black">
-                                🎬 Video
-                              </div>
+                              m.url.startsWith('data:video/') || /\.(mp4|webm|ogg|mov)($|\?)/i.test(m.url) ? (
+                                <video
+                                  src={m.url}
+                                  className="w-full h-full object-cover"
+                                  muted
+                                  playsInline
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-white bg-rose-900 text-[10px] font-black">
+                                  🎬 YouTube
+                                </div>
+                              )
                             ) : (
                               <img src={m.url} alt="Preview" className="w-full h-full object-cover" />
                             )}

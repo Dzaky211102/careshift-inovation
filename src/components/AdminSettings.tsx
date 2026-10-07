@@ -183,8 +183,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     mediaItems: [],
   });
 
+  const [uploadingEduMediaId, setUploadingEduMediaId] = useState<string | null>(null);
+
   // Helper to normalize video URL to YouTube embed or direct URL
   const normalizeMediaUrl = (url: string, type: MediaType): string => {
+    if (!url) return '';
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     const trimmed = url.trim();
     if (type === 'video') {
       if (trimmed.includes('youtube.com/watch?v=')) {
@@ -247,6 +251,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadingEduMediaId(mediaId);
     try {
       const { url, warning } = await processMediaUpload(file);
       if (warning) {
@@ -262,6 +267,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setUploadingEduMediaId(null);
     }
     e.target.value = '';
   };
@@ -1991,10 +1998,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       <button
                         type="button"
                         onClick={() => handleAddEduMedia('video')}
-                        className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-xl text-[11px] font-bold border border-red-200 transition-colors flex items-center gap-1"
+                        className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-xl text-[11px] font-bold border border-red-200 transition-colors flex items-center gap-1 shadow-2xs"
                       >
-                        <Video className="w-3 h-3 text-red-600" />
-                        <span>+ Video (YouTube)</span>
+                        <Video className="w-3.5 h-3.5 text-red-600" />
+                        <span>+ Video (Unggah MP4 / YouTube)</span>
                       </button>
                     </div>
                   </div>
@@ -2065,30 +2072,54 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                             <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
                               Sumber Berkas (Unggah atau Masukkan URL):
                             </label>
-                            <div className="flex items-center gap-1.5">
-                              {m.type !== 'video' && (
-                                <label className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-purple-200 text-purple-700 rounded-xl text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1 shadow-2xs">
-                                  <Upload className="w-3 h-3" />
-                                  <span>Unggah File</span>
-                                  <input
-                                    type="file"
-                                    accept={m.type === 'gif' ? 'image/gif' : 'image/*'}
-                                    onChange={(e) => handleEduMediaFileUpload(e, m.id)}
-                                    className="hidden"
-                                  />
-                                </label>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                {m.type === 'video' ? (
+                                  <label className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 rounded-xl text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1.5 shadow-2xs transition-colors">
+                                    <Video className="w-3.5 h-3.5 text-rose-600" />
+                                    <span>
+                                      {uploadingEduMediaId === m.id ? 'Memproses Video...' : 'Unggah Video'}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="video/mp4,video/webm,video/ogg,video/quicktime,video/*"
+                                      disabled={uploadingEduMediaId === m.id}
+                                      onChange={(e) => handleEduMediaFileUpload(e, m.id)}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                ) : (
+                                  <label className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-purple-200 text-purple-700 rounded-xl text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1 shadow-2xs transition-colors">
+                                    <Upload className="w-3.5 h-3.5 text-purple-600" />
+                                    <span>
+                                      {uploadingEduMediaId === m.id ? 'Memproses...' : 'Unggah File'}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept={m.type === 'gif' ? 'image/gif' : 'image/*'}
+                                      disabled={uploadingEduMediaId === m.id}
+                                      onChange={(e) => handleEduMediaFileUpload(e, m.id)}
+                                      className="hidden"
+                                    />
+                                  </label>
+                                )}
+                                <input
+                                  type="url"
+                                  value={m.url}
+                                  onChange={(e) => handleUpdateEduMedia(m.id, 'url', e.target.value)}
+                                  placeholder={
+                                    m.type === 'video'
+                                      ? 'Atau tempel link YouTube (https://www.youtube.com/watch?v=...) / link video online'
+                                      : 'Atau tempel URL gambar / GIF online https://...'
+                                  }
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+                                />
+                              </div>
+                              {m.type === 'video' && (
+                                <p className="text-[10px] text-rose-700 font-semibold flex items-center gap-1">
+                                  <span>💡 Tempat unggah video: Klik tombol "Unggah Video" di atas (MP4/WebM) atau tempel link YouTube.</span>
+                                </p>
                               )}
-                              <input
-                                type="url"
-                                value={m.url}
-                                onChange={(e) => handleUpdateEduMedia(m.id, 'url', e.target.value)}
-                                placeholder={
-                                  m.type === 'video'
-                                    ? 'Link YouTube: https://www.youtube.com/watch?v=... atau embed'
-                                    : 'Atau tempel URL gambar / GIF https://...'
-                                }
-                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
-                              />
                             </div>
                           </div>
                         </div>
@@ -2229,9 +2260,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                               m.aspectRatio === '1:1' ? 'w-16' : m.aspectRatio === '4:3' ? 'w-20' : 'w-28'
                             }`}>
                               {m.type === 'video' ? (
-                                <div className="w-full h-full flex items-center justify-center text-red-500 bg-slate-900 text-[10px] font-bold">
-                                  ▶ Video
-                                </div>
+                                m.url.startsWith('data:video/') || /\.(mp4|webm|ogg|mov)($|\?)/i.test(m.url) ? (
+                                  <video
+                                    src={m.url}
+                                    className="w-full h-full object-cover"
+                                    muted
+                                    playsInline
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-rose-400 bg-slate-900 text-[10px] font-bold text-center px-1">
+                                    ▶ Video YouTube
+                                  </div>
+                                )
                               ) : (
                                 <img
                                   src={m.url}

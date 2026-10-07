@@ -417,13 +417,25 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
                         Video Tutorial Edukasi Medis:
                       </span>
                       <div className="relative aspect-video max-w-xl rounded-2xl overflow-hidden bg-slate-900 shadow-md">
-                        <iframe
-                          src={article.videoUrl}
-                          title={article.title}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          className="w-full h-full border-0"
-                        />
+                        {article.videoUrl.startsWith('data:video/') ||
+                        article.videoUrl.startsWith('blob:') ||
+                        /\.(mp4|webm|ogg|mov|m4v)($|\?)/i.test(article.videoUrl) ||
+                        (!article.videoUrl.includes('youtube.com') && !article.videoUrl.includes('youtu.be')) ? (
+                          <video
+                            src={article.videoUrl}
+                            controls
+                            playsInline
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <iframe
+                            src={article.videoUrl}
+                            title={article.title}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="w-full h-full border-0"
+                          />
+                        )}
                       </div>
                     </div>
                   )}
