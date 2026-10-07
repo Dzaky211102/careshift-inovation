@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import {
   Usb,
@@ -37,6 +37,213 @@ interface GeneratedSlide {
   type: 'overview' | 'nurse';
 }
 
+/**
+ * Generate a high-resolution healthcare nurse SVG avatar as Data URL
+ * used when a nurse photo cannot be loaded or is unavailable.
+ */
+function createMedicalAvatarSvgDataUrl(name: string, role: string): string {
+  const initial = (name || 'N').trim().charAt(0).toUpperCase();
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+    <defs>
+      <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#4F46E5" />
+        <stop offset="100%" stop-color="#7C3AED" />
+      </linearGradient>
+      <linearGradient id="scrubGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#059669" />
+        <stop offset="100%" stop-color="#047857" />
+      </linearGradient>
+      <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FCD34D" />
+        <stop offset="100%" stop-color="#F59E0B" />
+      </linearGradient>
+    </defs>
+    <rect width="600" height="600" fill="url(#bgGrad)" />
+    <!-- Ambient glow circle -->
+    <circle cx="300" cy="300" r="240" fill="rgba(255,255,255,0.08)" />
+    
+    <!-- Body / Scrubs -->
+    <path d="M 170 540 Q 300 450 430 540 L 430 600 L 170 600 Z" fill="url(#scrubGrad)" />
+    <!-- V-neck of scrubs -->
+    <path d="M 260 480 L 300 530 L 340 480 Z" fill="#FCD34D" />
+    <!-- Medical Stethoscope on shoulders -->
+    <path d="M 230 490 Q 300 580 370 490" fill="none" stroke="#E2E8F0" stroke-width="14" stroke-linecap="round" />
+    <circle cx="300" cy="570" r="16" fill="#CBD5E1" stroke="#475569" stroke-width="4" />
+    
+    <!-- Neck -->
+    <rect x="270" y="380" width="60" height="110" rx="10" fill="url(#skinGrad)" />
+    
+    <!-- Head / Face -->
+    <ellipse cx="300" cy="300" rx="110" ry="130" fill="url(#skinGrad)" />
+    
+    <!-- Hair / Medical Cap -->
+    <path d="M 185 270 Q 300 130 415 270 Q 400 170 300 170 Q 200 170 185 270 Z" fill="#1E293B" />
+    
+    <!-- Eyes -->
+    <circle cx="260" cy="290" r="10" fill="#1E293B" />
+    <circle cx="340" cy="290" r="10" fill="#1E293B" />
+    <!-- Smile -->
+    <path d="M 270 340 Q 300 375 330 340" fill="none" stroke="#B45309" stroke-width="6" stroke-linecap="round" />
+    
+    <!-- Cross Symbol Badge -->
+    <circle cx="300" cy="110" r="34" fill="#EF4444" />
+    <rect x="294" y="90" width="12" height="40" fill="#FFFFFF" rx="2" />
+    <rect x="280" y="104" width="40" height="12" fill="#FFFFFF" rx="2" />
+    
+    <!-- Initials Badge -->
+    <rect x="230" y="420" width="140" height="40" rx="12" fill="rgba(255,255,255,0.9)" />
+    <text x="300" y="446" font-family="Arial, sans-serif" font-weight="bold" font-size="20" fill="#1E1B4B" text-anchor="middle">${initial} · PERAWAT</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * Safely loads any image URL (data, blob, or external HTTP)
+ * converting it to a reliable HTMLImageElement without CORS tainting.
+ */
+async function loadNursePhotoSafely(
+  photoUrl: string | undefined,
+  nurseName: string,
+  nurseRole: string
+): Promise<HTMLImageElement> {
+  // Helper to construct HTMLImageElement from a URL
+  const createImageElement = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = (e) => reject(e);
+      img.src = src;
+    });
+  };
+
+  // 1. If no URL provided, return medical avatar
+  if (!photoUrl || photoUrl.trim().length === 0) {
+    const avatarUrl = createMedicalAvatarSvgDataUrl(nurseName, nurseRole);
+    return createImageElement(avatarUrl);
+  }
+
+  const cleanUrl = photoUrl.trim();
+
+  // 2. If already a Base64 data URL or blob URL, load directly
+  if (cleanUrl.startsWith('data:') || cleanUrl.startsWith('blob:')) {
+    try {
+      return await createImageElement(cleanUrl);
+    } catch {
+      // fallback
+    }
+  }
+
+  // 3. Strategy A: Fetch image as Blob with cache-buster, then convert to Base64 Data URL
+  try {
+    const cacheBusted = cleanUrl.includes('?')
+      ? `${cleanUrl}&cors_bypass=${Date.now()}`
+      : `${cleanUrl}?cors_bypass=${Date.now()}`;
+    const res = await fetch(cacheBusted, { mode: 'cors' });
+    if (res.ok) {
+      const blob = await res.blob();
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      return await createImageElement(base64Data);
+    }
+  } catch (err) {
+    // console.warn('Direct CORS blob fetch failed, trying proxy...', cleanUrl);
+  }
+
+  // 4. Strategy B: High-availability image proxy (weserv.nl) which attaches Access-Control-Allow-Origin: *
+  try {
+    const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&w=800&h=800&fit=cover&output=jpg`;
+    const res = await fetch(proxyUrl);
+    if (res.ok) {
+      const blob = await res.blob();
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      return await createImageElement(base64Data);
+    }
+  } catch (err) {
+    // console.warn('Proxy fetch failed, trying standard image load...', err);
+  }
+
+  // 5. Strategy C: Standard Image with crossOrigin = 'anonymous'
+  try {
+    const testImg = new Image();
+    testImg.crossOrigin = 'anonymous';
+    const loadedImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+      testImg.onload = () => resolve(testImg);
+      testImg.onerror = reject;
+      testImg.src = cleanUrl.includes('?') ? `${cleanUrl}&t=${Date.now()}` : `${cleanUrl}?t=${Date.now()}`;
+    });
+
+    // Test if canvas is taint-free
+    const testCanvas = document.createElement('canvas');
+    testCanvas.width = 10;
+    testCanvas.height = 10;
+    const testCtx = testCanvas.getContext('2d');
+    if (testCtx) {
+      testCtx.drawImage(loadedImg, 0, 0, 10, 10);
+      testCanvas.toDataURL(); // Will throw SecurityError if tainted
+      return loadedImg;
+    }
+  } catch (err) {
+    // Canvas tainted or image failed
+  }
+
+  // 6. Strategy D: Fallback to high-res medical vector avatar
+  const fallbackSvgUrl = createMedicalAvatarSvgDataUrl(nurseName, nurseRole);
+  return await createImageElement(fallbackSvgUrl);
+}
+
+/**
+ * Draws an image with object-fit: cover and optional rounded corners on Canvas.
+ */
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number = 0
+) {
+  const nw = img.naturalWidth || img.width || 500;
+  const nh = img.naturalHeight || img.height || 500;
+  if (!nw || !nh) return;
+
+  const imgRatio = nw / nh;
+  const targetRatio = w / h;
+  let sx = 0;
+  let sy = 0;
+  let sw = nw;
+  let sh = nh;
+
+  if (imgRatio > targetRatio) {
+    sw = nh * targetRatio;
+    sx = (nw - sw) / 2;
+  } else {
+    sh = nw / targetRatio;
+    sy = (nh - sh) / 2;
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  if (radius > 0 && typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, radius);
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  ctx.clip();
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  ctx.restore();
+}
+
 export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
   isOpen,
   onClose,
@@ -47,11 +254,11 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
 }) => {
   const [selectedShiftId, setSelectedShiftId] = useState<string>(currentShift || 'pagi');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationStatus, setGenerationStatus] = useState<string>('');
   const [generatedSlides, setGeneratedSlides] = useState<GeneratedSlide[]>([]);
   const [previewSlideIdx, setPreviewSlideIdx] = useState<number>(0);
   const [isDownloadingZip, setIsDownloadingZip] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const shiftConfigs = settings.shiftConfigs || [
     { id: 'pagi', name: 'Sif Pagi', startTime: '07:00', endTime: '14:00', colorTheme: 'amber' },
@@ -72,305 +279,20 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
   const assignedNurses = nurses.filter((n) => assignedNurseIds.includes(n.id));
   const activeNursesList = assignedNurses.length > 0 ? assignedNurses : nurses.slice(0, 4);
 
-  // Generate 1920x1080 Full HD slide image using HTML5 Canvas
-  const renderSlideToCanvas = async (
-    type: 'overview' | 'nurse',
-    nurse?: Nurse
-  ): Promise<string> => {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1920;
-      canvas.height = 1080;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        resolve('');
-        return;
-      }
-
-      // Background Gradient based on shift
-      let gradStart = '#1E1B4B';
-      let gradMid = '#312E81';
-      let gradEnd = '#0F172A';
-      let accentHex = '#818CF8';
-      let badgeBg = '#4F46E5';
-
-      if (selectedShiftId === 'pagi') {
-        gradStart = '#451A03';
-        gradMid = '#78350F';
-        gradEnd = '#1E1B4B';
-        accentHex = '#FBBF24';
-        badgeBg = '#D97706';
-      } else if (selectedShiftId === 'siang') {
-        gradStart = '#4C0519';
-        gradMid = '#831843';
-        gradEnd = '#1E1B4B';
-        accentHex = '#FB7185';
-        badgeBg = '#E11D48';
-      }
-
-      const bgGrad = ctx.createLinearGradient(0, 0, 1920, 1080);
-      bgGrad.addColorStop(0, gradStart);
-      bgGrad.addColorStop(0.5, gradMid);
-      bgGrad.addColorStop(1, gradEnd);
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, 1920, 1080);
-
-      // Subtle decorative ambient circles
-      ctx.save();
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.beginPath();
-      ctx.arc(200, 200, 350, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(1750, 850, 450, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // Top Header Bar Container
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.roundRect?.(60, 50, 1800, 120, 24);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Header Text: Hospital & Ward Name
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(settings.hospitalName || 'RS Citra Sehat Care', 100, 105);
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-      ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(settings.wardName || 'Ruang Rawat Inap Teratai', 100, 142);
-
-      // Shift Badge Top Right
-      ctx.fillStyle = badgeBg;
-      ctx.roundRect?.(1400, 75, 420, 70, 20);
-      ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${currentConfig.name.toUpperCase()} (${startDot} - ${endDot} WITA)`, 1610, 120);
-      ctx.textAlign = 'left';
-
-      if (type === 'overview') {
-        // OVERVIEW SLIDE: Lists all nurses on duty
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '900 48px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`TIM PERAWAT JAGA HARI INI`, 100, 260);
-
-        ctx.fillStyle = accentHex;
-        ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(
-          `Standar Pelayanan Prima & Siaga Ruangan · ${activeNursesList.length} Perawat Bertugas`,
-          100,
-          310
-        );
-
-        // Grid cards of nurses (up to 6)
-        const cols = activeNursesList.length > 3 ? 3 : activeNursesList.length || 1;
-        const cardW = (1800 - (cols - 1) * 30) / cols;
-        const cardH = activeNursesList.length > 3 ? 280 : 420;
-
-        activeNursesList.slice(0, 6).forEach((n, idx) => {
-          const colIdx = idx % cols;
-          const rowIdx = Math.floor(idx / cols);
-          const x = 60 + colIdx * (cardW + 30);
-          const y = 370 + rowIdx * (cardH + 30);
-
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-          ctx.roundRect?.(x, y, cardW, cardH, 20);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-
-          // Role Badge
-          ctx.fillStyle = badgeBg;
-          ctx.roundRect?.(x + 24, y + 24, Math.min(cardW - 48, 220), 40, 12);
-          ctx.fill();
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText(n.role || 'Perawat Jaga', x + 38, y + 50);
-
-          // Nurse Name
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText(n.name, x + 24, y + 110);
-
-          // NIP
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-          ctx.font = '500 20px monospace';
-          ctx.fillText(n.nip || 'NIP Terdaftar', x + 24, y + 145);
-
-          // Status Siaga
-          ctx.fillStyle = '#34D399';
-          ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText('● Siaga di Ruangan', x + 24, y + 190);
-        });
-
-        // Footer Bar
-        drawSlideFooter(ctx, settings);
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
-      } else if (nurse) {
-        // INDIVIDUAL NURSE SLIDE
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-
-        const proceedDrawNurse = () => {
-          // Left: Nurse Photo Container (Square with rounded corners & ring)
-          const photoX = 140;
-          const photoY = 260;
-          const photoSize = 580;
-
-          ctx.save();
-          ctx.beginPath();
-          ctx.roundRect?.(photoX, photoY, photoSize, photoSize, 40);
-          ctx.clip();
-
-          if (img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, photoX, photoY, photoSize, photoSize);
-          } else {
-            // Gradient avatar placeholder
-            const avGrad = ctx.createLinearGradient(photoX, photoY, photoX + photoSize, photoY + photoSize);
-            avGrad.addColorStop(0, '#A855F7');
-            avGrad.addColorStop(1, '#6366F1');
-            ctx.fillStyle = avGrad;
-            ctx.fillRect(photoX, photoY, photoSize, photoSize);
-
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 180px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(nurse.name.charAt(0), photoX + photoSize / 2, photoY + photoSize / 2 + 60);
-            ctx.textAlign = 'left';
-          }
-          ctx.restore();
-
-          // Photo Frame Border
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.lineWidth = 10;
-          ctx.roundRect?.(photoX, photoY, photoSize, photoSize, 40);
-          ctx.stroke();
-
-          // Role Badge Under Photo
-          ctx.fillStyle = badgeBg;
-          ctx.roundRect?.(photoX + 50, photoY + photoSize - 35, photoSize - 100, 70, 35);
-          ctx.fill();
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.lineWidth = 3;
-          ctx.stroke();
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(nurse.role, photoX + photoSize / 2, photoY + photoSize + 10);
-          ctx.textAlign = 'left';
-
-          // Right Details Panel
-          const textX = 800;
-
-          // Status Pill
-          ctx.fillStyle = 'rgba(52, 211, 153, 0.2)';
-          ctx.roundRect?.(textX, 260, 480, 50, 16);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(52, 211, 153, 0.5)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          ctx.fillStyle = '#6EE7B7';
-          ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText(`● PERAWAT JAGA ${currentConfig.name.toUpperCase()} (${startDot} - ${endDot})`, textX + 25, 294);
-
-          // Nurse Name
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '900 56px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText(nurse.name, textX, 390);
-
-          // NIP & Unit info tags
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-          ctx.roundRect?.(textX, 425, 340, 50, 14);
-          ctx.fill();
-          ctx.fillStyle = '#E0E7FF';
-          ctx.font = 'bold 22px monospace';
-          ctx.fillText(nurse.nip, textX + 20, 458);
-
-          ctx.fillStyle = 'rgba(129, 140, 248, 0.25)';
-          ctx.roundRect?.(textX + 360, 425, 360, 50, 14);
-          ctx.fill();
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText('Ruang Rawat Inap Bedah', textX + 380, 458);
-
-          // Duty Focus Box
-          const boxY = 515;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-          ctx.roundRect?.(textX, boxY, 960, 310, 24);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-
-          ctx.fillStyle = accentHex;
-          ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText('★ FOKUS TUGAS & KESIAPSIAGAAN PELAYANAN', textX + 35, boxY + 55);
-
-          const duties =
-            selectedShiftId === 'pagi'
-              ? [
-                  'Pendampingan Visit Dokter Spesialis & Evaluasi Pasca-Tindakan',
-                  'Pemberian Terapi Obat Pagi & Persiapan Pasien Jadwal Operasi',
-                  'Edukasi Pasien & Keluarga Terkait Tata Tertib Ruangan',
-                ]
-              : selectedShiftId === 'siang'
-              ? [
-                  'Observasi & Pemulihan Pasien Pasca-Operasi (Post-Op di Ruangan)',
-                  'Pendampingan Mobilisasi Dini & Perawatan Luka Steril',
-                  'Edukasi Pasien dan Keluarga pada Jam Kunjungan Siang/Sore',
-                ]
-              : [
-                  'Menciptakan Suasana Tenang & Nyaman untuk Istirahat Pasien',
-                  'Ronda Malam Berkala, Pemantauan Tanda Vital & Cairan Infus',
-                  'Kesiapsiagaan Cepat Merespons Panggilan Bel (Nurse Call) 24 Jam',
-                ];
-
-          ctx.fillStyle = '#F1F5F9';
-          ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
-          duties.forEach((d, dIdx) => {
-            ctx.fillText(`✓  ${d}`, textX + 35, boxY + 115 + dIdx * 55);
-          });
-
-          // Slogan / Motto
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-          ctx.font = 'italic 24px "Plus Jakarta Sans", sans-serif';
-          ctx.fillText(
-            `"Melayani dengan kehangatan, profesionalisme, dan komitmen kesembuhan pasien."`,
-            textX,
-            880
-          );
-
-          // Slide Footer
-          drawSlideFooter(ctx, settings);
-          resolve(canvas.toDataURL('image/jpeg', 0.92));
-        };
-
-        if (nurse.photoUrl) {
-          img.src = nurse.photoUrl;
-          img.onload = proceedDrawNurse;
-          img.onerror = proceedDrawNurse;
-        } else {
-          proceedDrawNurse();
-        }
-      }
-    });
-  };
-
+  // Draw bottom footer
   const drawSlideFooter = (ctx: CanvasRenderingContext2D, st: AppSettings) => {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.roundRect?.(60, 960, 1800, 70, 18);
-    ctx.fill();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(60, 960, 1800, 70, 18);
+      ctx.fill();
+    } else {
+      ctx.fillRect(60, 960, 1800, 70);
+    }
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
     ctx.fillText(
-      `CareShift TV Display System · ${st.hospitalName || 'Rumah Sakit'} · ${st.wardName || 'Ruangan'}`,
+      `CareShift TV Display System · ${st.hospitalName || 'Rumah Sakit'} · ${st.wardName || 'Ruang Rawat Inap'}`,
       100,
       1004
     );
@@ -382,6 +304,401 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
     ctx.textAlign = 'left';
   };
 
+  // Render Slide 1: Overview
+  const renderOverviewSlide = (
+    loadedPhotosMap: Map<string, HTMLImageElement>
+  ): string => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Gradient background
+    let gradStart = '#1E1B4B';
+    let gradMid = '#312E81';
+    let gradEnd = '#0F172A';
+    let accentHex = '#818CF8';
+    let badgeBg = '#4F46E5';
+
+    if (selectedShiftId === 'pagi') {
+      gradStart = '#451A03';
+      gradMid = '#78350F';
+      gradEnd = '#1E1B4B';
+      accentHex = '#FBBF24';
+      badgeBg = '#D97706';
+    } else if (selectedShiftId === 'siang') {
+      gradStart = '#4C0519';
+      gradMid = '#831843';
+      gradEnd = '#1E1B4B';
+      accentHex = '#FB7185';
+      badgeBg = '#E11D48';
+    }
+
+    const bgGrad = ctx.createLinearGradient(0, 0, 1920, 1080);
+    bgGrad.addColorStop(0, gradStart);
+    bgGrad.addColorStop(0.5, gradMid);
+    bgGrad.addColorStop(1, gradEnd);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1920, 1080);
+
+    // Decorative circles
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.beginPath();
+    ctx.arc(200, 200, 350, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1750, 850, 450, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Top Header Bar
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(60, 50, 1800, 120, 24);
+      ctx.fill();
+    } else {
+      ctx.fillRect(60, 50, 1800, 120);
+    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Header Text: Hospital & Ward Name
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(settings.hospitalName || 'RS Citra Sehat Care', 100, 105);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(settings.wardName || 'Ruang Rawat Inap Teratai', 100, 142);
+
+    // Shift Badge Top Right
+    ctx.fillStyle = badgeBg;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(1400, 75, 420, 70, 20);
+      ctx.fill();
+    } else {
+      ctx.fillRect(1400, 75, 420, 70);
+    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${currentConfig.name.toUpperCase()} (${startDot} - ${endDot} WITA)`, 1610, 120);
+    ctx.textAlign = 'left';
+
+    // Title Section
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 48px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(`TIM PERAWAT JAGA HARI INI`, 100, 260);
+
+    ctx.fillStyle = accentHex;
+    ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(
+      `Standar Pelayanan Prima & Siaga Ruangan · ${activeNursesList.length} Perawat Bertugas`,
+      100,
+      310
+    );
+
+    // Grid cards with Nurse Photo and Info
+    const cols = activeNursesList.length > 3 ? 3 : activeNursesList.length || 1;
+    const cardW = (1800 - (cols - 1) * 30) / cols;
+    const cardH = activeNursesList.length > 3 ? 280 : 360;
+
+    activeNursesList.slice(0, 6).forEach((n, idx) => {
+      const colIdx = idx % cols;
+      const rowIdx = Math.floor(idx / cols);
+      const x = 60 + colIdx * (cardW + 30);
+      const y = 370 + rowIdx * (cardH + 30);
+
+      // Card Background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, cardW, cardH, 20);
+        ctx.fill();
+      } else {
+        ctx.fillRect(x, y, cardW, cardH);
+      }
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Nurse Photo on the Card (Left side of card)
+      const photoSize = cardH > 300 ? 140 : 110;
+      const photoX = x + 24;
+      const photoY = y + (cardH - photoSize) / 2;
+
+      const nurseImg = loadedPhotosMap.get(n.id);
+      if (nurseImg) {
+        drawImageCover(ctx, nurseImg, photoX, photoY, photoSize, photoSize, 20);
+
+        // Photo border ring
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 3;
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(photoX, photoY, photoSize, photoSize, 20);
+          ctx.stroke();
+        }
+      }
+
+      // Details to the right of photo
+      const textLeft = photoX + photoSize + 20;
+      const availableTextWidth = cardW - (photoSize + 60);
+
+      // Role Badge
+      ctx.fillStyle = badgeBg;
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(textLeft, y + 30, Math.min(availableTextWidth, 230), 36, 12);
+        ctx.fill();
+      } else {
+        ctx.fillRect(textLeft, y + 30, Math.min(availableTextWidth, 230), 36);
+      }
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(n.role || 'Perawat Jaga', textLeft + 16, y + 54);
+
+      // Nurse Name
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(n.name, textLeft, y + 105);
+
+      // NIP
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '500 18px monospace';
+      ctx.fillText(n.nip || 'NIP Terdaftar', textLeft, y + 138);
+
+      // Status Pill
+      ctx.fillStyle = '#34D399';
+      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('● Siaga di Ruangan', textLeft, y + 180);
+    });
+
+    drawSlideFooter(ctx, settings);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  };
+
+  // Render Slide 2+: Individual Nurse Slide
+  const renderIndividualNurseSlide = (
+    nurse: Nurse,
+    loadedImg: HTMLImageElement
+  ): string => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Shift Color Themes
+    let gradStart = '#1E1B4B';
+    let gradMid = '#312E81';
+    let gradEnd = '#0F172A';
+    let accentHex = '#818CF8';
+    let badgeBg = '#4F46E5';
+
+    if (selectedShiftId === 'pagi') {
+      gradStart = '#451A03';
+      gradMid = '#78350F';
+      gradEnd = '#1E1B4B';
+      accentHex = '#FBBF24';
+      badgeBg = '#D97706';
+    } else if (selectedShiftId === 'siang') {
+      gradStart = '#4C0519';
+      gradMid = '#831843';
+      gradEnd = '#1E1B4B';
+      accentHex = '#FB7185';
+      badgeBg = '#E11D48';
+    }
+
+    const bgGrad = ctx.createLinearGradient(0, 0, 1920, 1080);
+    bgGrad.addColorStop(0, gradStart);
+    bgGrad.addColorStop(0.5, gradMid);
+    bgGrad.addColorStop(1, gradEnd);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1920, 1080);
+
+    // Decorative circles
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.beginPath();
+    ctx.arc(250, 300, 400, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1700, 800, 500, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Top Header Bar
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(60, 50, 1800, 120, 24);
+      ctx.fill();
+    } else {
+      ctx.fillRect(60, 50, 1800, 120);
+    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(settings.hospitalName || 'RS Citra Sehat Care', 100, 105);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(settings.wardName || 'Ruang Rawat Inap Teratai', 100, 142);
+
+    // Shift Badge
+    ctx.fillStyle = badgeBg;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(1400, 75, 420, 70, 20);
+      ctx.fill();
+    } else {
+      ctx.fillRect(1400, 75, 420, 70);
+    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${currentConfig.name.toUpperCase()} (${startDot} - ${endDot} WITA)`, 1610, 120);
+    ctx.textAlign = 'left';
+
+    // LEFT: PROMINENT NURSE PHOTO (580 x 580 px)
+    const photoX = 140;
+    const photoY = 260;
+    const photoSize = 580;
+
+    // Draw the actual photo with cover fit
+    drawImageCover(ctx, loadedImg, photoX, photoY, photoSize, photoSize, 40);
+
+    // Photo Border Frame
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 10;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(photoX, photoY, photoSize, photoSize, 40);
+      ctx.stroke();
+    }
+
+    // Role Badge Under Photo
+    ctx.fillStyle = badgeBg;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(photoX + 50, photoY + photoSize - 35, photoSize - 100, 70, 35);
+      ctx.fill();
+    } else {
+      ctx.fillRect(photoX + 50, photoY + photoSize - 35, photoSize - 100, 70);
+    }
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 3;
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(photoX + 50, photoY + photoSize - 35, photoSize - 100, 70, 35);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(nurse.role, photoX + photoSize / 2, photoY + photoSize + 10);
+    ctx.textAlign = 'left';
+
+    // RIGHT: NURSE DETAILS & DUTIES
+    const textX = 800;
+
+    // Status Pill
+    ctx.fillStyle = 'rgba(52, 211, 153, 0.2)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(textX, 260, 480, 50, 16);
+      ctx.fill();
+    } else {
+      ctx.fillRect(textX, 260, 480, 50);
+    }
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#6EE7B7';
+    ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(`● PERAWAT JAGA ${currentConfig.name.toUpperCase()} (${startDot} - ${endDot})`, textX + 25, 294);
+
+    // Nurse Name
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 56px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(nurse.name, textX, 390);
+
+    // NIP & Unit info tags
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(textX, 425, 340, 50, 14);
+      ctx.fill();
+    } else {
+      ctx.fillRect(textX, 425, 340, 50);
+    }
+    ctx.fillStyle = '#E0E7FF';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText(nurse.nip, textX + 20, 458);
+
+    ctx.fillStyle = 'rgba(129, 140, 248, 0.25)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(textX + 360, 425, 360, 50, 14);
+      ctx.fill();
+    } else {
+      ctx.fillRect(textX + 360, 425, 360, 50);
+    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(settings.wardName || 'Ruang Rawat Inap', textX + 380, 458);
+
+    // Duty Focus Box
+    const boxY = 515;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(textX, boxY, 960, 310, 24);
+      ctx.fill();
+    } else {
+      ctx.fillRect(textX, boxY, 960, 310);
+    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = accentHex;
+    ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('★ FOKUS TUGAS & KESIAPSIAGAAN PELAYANAN', textX + 35, boxY + 55);
+
+    const duties =
+      selectedShiftId === 'pagi'
+        ? [
+            'Pendampingan Visit Dokter Spesialis & Evaluasi Pasca-Tindakan',
+            'Pemberian Terapi Obat Pagi & Persiapan Pasien Jadwal Operasi',
+            'Edukasi Pasien & Keluarga Terkait Tata Tertib Ruangan',
+          ]
+        : selectedShiftId === 'siang'
+        ? [
+            'Observasi & Pemulihan Pasien Pasca-Operasi (Post-Op di Ruangan)',
+            'Pendampingan Mobilisasi Dini & Perawatan Luka Steril',
+            'Edukasi Pasien dan Keluarga pada Jam Kunjungan Siang/Sore',
+          ]
+        : [
+            'Menciptakan Suasana Tenang & Nyaman untuk Istirahat Pasien',
+            'Ronda Malam Berkala, Pemantauan Tanda Vital & Cairan Infus',
+            'Kesiapsiagaan Cepat Merespons Panggilan Bel (Nurse Call) 24 Jam',
+          ];
+
+    ctx.fillStyle = '#F1F5F9';
+    ctx.font = '500 24px "Plus Jakarta Sans", sans-serif';
+    duties.forEach((d, dIdx) => {
+      ctx.fillText(`✓  ${d}`, textX + 35, boxY + 115 + dIdx * 55);
+    });
+
+    // Slogan / Motto
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = 'italic 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(
+      `"Melayani dengan kehangatan, profesionalisme, dan komitmen kesembuhan pasien."`,
+      textX,
+      880
+    );
+
+    drawSlideFooter(ctx, settings);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  };
+
   // Generate All Slides when modal opens or shift changes
   useEffect(() => {
     if (!isOpen) return;
@@ -389,10 +706,23 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
     let isCancelled = false;
     const generateAll = async () => {
       setIsGenerating(true);
+      setGenerationStatus('Memuat foto perawat beresolusi tinggi...');
+
+      // 1. PRELOAD ALL ON-DUTY NURSE PHOTOS FIRST
+      const loadedPhotosMap = new Map<string, HTMLImageElement>();
+      for (let i = 0; i < activeNursesList.length; i++) {
+        const nurse = activeNursesList[i];
+        setGenerationStatus(`Memuat foto perawat (${i + 1}/${activeNursesList.length}): ${nurse.name}...`);
+        const img = await loadNursePhotoSafely(nurse.photoUrl, nurse.name, nurse.role);
+        if (isCancelled) return;
+        loadedPhotosMap.set(nurse.id, img);
+      }
+
+      setGenerationStatus('Menyusun tata letak slide TV 1080p...');
       const slides: GeneratedSlide[] = [];
 
-      // 1. Overview Slide
-      const overviewDataUrl = await renderSlideToCanvas('overview');
+      // 2. Overview Slide with nurse photo thumbnails
+      const overviewDataUrl = renderOverviewSlide(loadedPhotosMap);
       if (isCancelled) return;
       slides.push({
         filename: `01_Tampilan_Utama_${selectedShiftId.toUpperCase()}.jpg`,
@@ -401,11 +731,14 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
         type: 'overview',
       });
 
-      // 2. Individual Nurse Slides
+      // 3. Individual Nurse Slides with large nurse photos
       for (let i = 0; i < activeNursesList.length; i++) {
         const nurse = activeNursesList[i];
-        const nurseDataUrl = await renderSlideToCanvas('nurse', nurse);
+        setGenerationStatus(`Membuat slide ${i + 2}: ${nurse.name}...`);
+        const nurseImg = loadedPhotosMap.get(nurse.id)!;
+        const nurseDataUrl = renderIndividualNurseSlide(nurse, nurseImg);
         if (isCancelled) return;
+
         const cleanName = nurse.name.replace(/[^a-zA-Z0-9]/g, '_');
         slides.push({
           filename: `0${i + 2}_Perawat_${cleanName}.jpg`,
@@ -418,6 +751,7 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
       setGeneratedSlides(slides);
       setPreviewSlideIdx(0);
       setIsGenerating(false);
+      setGenerationStatus('');
     };
 
     generateAll();
@@ -436,9 +770,8 @@ export const UsbFlashdiskModal: React.FC<UsbFlashdiskModalProps> = ({
       const folderName = `CareShift_TV_${selectedShiftId.toUpperCase()}`;
       const folder = zip.folder(folderName) || zip;
 
-      // 1. Add all Full HD JPG images
+      // 1. Add all Full HD JPG images with actual nurse photos
       generatedSlides.forEach((slide) => {
-        // Strip data:image/jpeg;base64,
         const base64Data = slide.dataUrl.split(',')[1];
         if (base64Data) {
           folder.file(slide.filename, base64Data, { base64: true });
@@ -457,7 +790,7 @@ PETUNJUK PENGGUNAAN CEPAT:
 1. PINDAHKAN FILE KE FLASHDISK USB:
    - Ekstrak seluruh file foto (.jpg) yang ada di dalam folder ini.
    - Colok Flashdisk USB ke laptop/komputer, lalu Salin (Copy) folder 
-     "${folderName}" atau semua foto ke dalam Flashdisk Anda.
+     "${folderName}" atau semua foto (.jpg) ke dalam Flashdisk Anda.
 
 2. COLOK KE TV BIASA:
    - Tancapkan Flashdisk USB ke port USB yang ada di samping atau belakang TV.
@@ -472,7 +805,7 @@ PETUNJUK PENGGUNAAN CEPAT:
    - Durasi Slide: Atur ke 5 detik atau 10 detik per foto.
    - Efek Transisi: Pilih Fade / Acak / Normal.
    - Pengulangan (Repeat): Pastikan pilih "REPEAT ALL" / "ULANGI SEMUA".
-     Dengan begini, slide akan berputar bergantian secara otomatis tanpa henti.
+     Dengan begini, slide perawat akan berputar bergantian secara otomatis tanpa henti.
 
 4. MENAMPILKAN MENGGUNAKAN LAPTOP / TV BOX (ALTERNATIF):
    - Jika memiliki laptop atau Android Box yang terhubung HDMI ke TV,
@@ -599,6 +932,10 @@ Dibuat otomatis oleh CareShift · Sistem Roster Perawat Terpadu
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
                 Solusi TV Biasa (Bukan Smart TV)
               </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                Foto Perawat Otomatis Tersinkron
+              </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
                 Format TV 16:9 Full HD 1080p
               </span>
@@ -607,7 +944,7 @@ Dibuat otomatis oleh CareShift · Sistem Roster Perawat Terpadu
               Paket Slide Show Flashdisk USB untuk TV
             </h3>
             <p className="text-xs text-slate-500">
-              Ubah jadwal perawat menjadi foto beresolusi tinggi 1920x1080 yang bisa diputar di TV LED/LCD biasa menggunakan flashdisk.
+              Foto perawat otomatis disematkan dalam resolusi tinggi 1920x1080 untuk diputar berulang di TV LED/LCD via port USB.
             </p>
           </div>
         </div>
@@ -619,7 +956,7 @@ Dibuat otomatis oleh CareShift · Sistem Roster Perawat Terpadu
             <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-2xl flex items-center gap-2.5 shadow-sm animate-bounce">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <div className="text-xs font-semibold">
-                Paket ZIP Flashdisk berhasil diunduh! Silakan ekstrak dan salin file foto ke Flashdisk USB Anda.
+                Paket ZIP Flashdisk berhasil diunduh lengkap dengan foto seluruh perawat! Silakan ekstrak dan salin ke Flashdisk USB Anda.
               </div>
             </div>
           )}
@@ -674,7 +1011,7 @@ Dibuat otomatis oleh CareShift · Sistem Roster Perawat Terpadu
               <div className="aspect-video w-full rounded-2xl bg-slate-900 flex flex-col items-center justify-center text-white gap-3 border border-slate-800">
                 <Sparkles className="w-8 h-8 text-amber-400 animate-spin" />
                 <p className="text-xs font-semibold">
-                  Membuat slide resolusi tinggi Full HD 1920x1080...
+                  {generationStatus || 'Memproses foto perawat Full HD 1920x1080...'}
                 </p>
               </div>
             ) : currentPreviewSlide ? (
@@ -761,7 +1098,7 @@ Dibuat otomatis oleh CareShift · Sistem Roster Perawat Terpadu
               <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                 <span className="font-bold text-purple-700 block">Langkah 1: Salin ke Flashdisk</span>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Unduh paket ZIP di bawah, ekstrak filenya, lalu salin folder foto ke Flashdisk USB Anda.
+                  Unduh paket ZIP di bawah, ekstrak filenya, lalu salin folder foto perawat ke Flashdisk USB Anda.
                 </p>
               </div>
               <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
@@ -784,7 +1121,7 @@ Dibuat otomatis oleh CareShift · Sistem Roster Perawat Terpadu
         <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-slate-500 flex items-center gap-1.5">
             <Info className="w-4 h-4 text-purple-600 shrink-0" />
-            <span>Format foto standar JPEG 1920x1080 didukung oleh semua merk TV LED/LCD (Samsung, LG, Sharp, Polytron, dll).</span>
+            <span>Foto perawat otomatis disematkan langsung ke dalam file JPEG 1920x1080 Full HD (tanpa risiko CORS/foto kosong).</span>
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

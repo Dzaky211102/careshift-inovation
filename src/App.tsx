@@ -8,6 +8,7 @@ import { ShiftDisplayDashboard } from './components/ShiftDisplayDashboard';
 import { MonthlyScheduleCalendar } from './components/MonthlyScheduleCalendar';
 import { CanvaSlidePresenter } from './components/CanvaSlidePresenter';
 import { PatientPortal } from './components/PatientPortal';
+import { EducationPortal } from './components/EducationPortal';
 import { AdminSettings } from './components/AdminSettings';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { getWitaDateString, determineActiveShift } from './utils/witaTime';
@@ -229,7 +230,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 p-3 md:p-6 flex flex-col justify-between overflow-x-hidden">
+        <main className="flex-1 p-3 md:p-6 pb-24 md:pb-6 flex flex-col justify-between overflow-x-hidden">
           <div>
             {/* Top Header with WITA 24h clock, logos & admin toggle */}
             <Header
@@ -268,6 +269,7 @@ export default function App() {
                   if (rmOrName) setPatientSearchQuery(rmOrName);
                   setActiveTab('patient');
                 }}
+                onOpenEducation={() => setActiveTab('education')}
                 onOpenMonthlySchedule={() => setActiveTab('monthly')}
                 onOpenImageSettings={() => setActiveTab('settings')}
               />
@@ -299,7 +301,7 @@ export default function App() {
               />
             )}
 
-            {/* TAB: PATIENT PORTAL */}
+            {/* TAB: PATIENT PORTAL (Status Pasien & Checklist Bedah) */}
             {activeTab === 'patient' && (
               <PatientPortal
                 patients={patients}
@@ -308,6 +310,7 @@ export default function App() {
                 initialSearchQuery={patientSearchQuery}
                 isAdmin={isAdmin}
                 onOpenEducationSettings={() => setActiveTab('settings')}
+                onOpenEducationPortal={() => setActiveTab('education')}
                 onUpdatePatientChecklist={(patientId, checkId, completed) => {
                   const updated = patients.map((p) =>
                     p.id === patientId && p.checklist
@@ -324,6 +327,17 @@ export default function App() {
                   const pTarget = updated.find((p) => p.id === patientId);
                   if (pTarget) FirebaseSyncService.savePatientOnline(pTarget);
                 }}
+              />
+            )}
+
+            {/* TAB: DEDICATED EDUCATION PORTAL (Sub Halaman Khusus Edukasi Pasien) */}
+            {activeTab === 'education' && (
+              <EducationPortal
+                educationArticles={educationArticles}
+                settings={settings}
+                isAdmin={isAdmin}
+                onOpenAdminSettings={() => setActiveTab('settings')}
+                onOpenPatientPortal={() => setActiveTab('patient')}
               />
             )}
 

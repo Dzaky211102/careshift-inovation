@@ -20,6 +20,7 @@ import {
   Play,
   Link2,
   PenLine,
+  BookOpen,
 } from 'lucide-react';
 import { Patient, EducationArticle, AppSettings } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -32,6 +33,7 @@ interface PatientPortalProps {
   onUpdatePatientChecklist: (patientId: string, checklistId: string, completed: boolean) => void;
   isAdmin?: boolean;
   onOpenEducationSettings?: () => void;
+  onOpenEducationPortal?: () => void;
 }
 
 export const PatientPortal: React.FC<PatientPortalProps> = ({
@@ -42,6 +44,7 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   onUpdatePatientChecklist,
   isAdmin = false,
   onOpenEducationSettings,
+  onOpenEducationPortal,
 }) => {
   const [searchInput, setSearchInput] = useState(initialSearchQuery);
   const [activePatient, setActivePatient] = useState<Patient | null>(() => {
@@ -318,6 +321,16 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
                   Pelajari tahapan sebelum operasi, manajemen nyeri setelah tindakan, dan perawatan luka steril di rumah.
                 </p>
               </div>
+
+              {onOpenEducationPortal && (
+                <button
+                  onClick={onOpenEducationPortal}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Buka Sub-Halaman Khusus Edukasi</span>
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2 overflow-x-auto pb-1">

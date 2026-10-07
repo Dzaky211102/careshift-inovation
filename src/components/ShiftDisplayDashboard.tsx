@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Lock,
   Usb,
+  BookOpen,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConnectTvModal } from './ConnectTvModal';
@@ -42,6 +43,7 @@ interface ShiftDisplayDashboardProps {
   isAdmin: boolean;
   onOpenCanva: () => void;
   onOpenPatientPortal: (rmOrName?: string) => void;
+  onOpenEducation?: () => void;
   onOpenMonthlySchedule: () => void;
   onOpenImageSettings: () => void;
 }
@@ -58,6 +60,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
   isAdmin,
   onOpenCanva,
   onOpenPatientPortal,
+  onOpenEducation,
   onOpenMonthlySchedule,
   onOpenImageSettings,
 }) => {
@@ -666,25 +669,28 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
-                <HeartHandshake className="w-4 h-4" />
+                <BookOpen className="w-4 h-4" />
               </div>
-              <h3 className="font-display font-black text-base">Panduan Edukasi Pasien Operasi</h3>
+              <h3 className="font-display font-black text-base">Pusat Edukasi Pasien Bedah</h3>
             </div>
             <p className="text-xs text-rose-100 leading-relaxed">
-              Pasien dan keluarga dapat mengecek instruksi puasa pra-bedah, panduan perawatan luka di rumah, dan memesan kunjungan perawat home care.
+              Panduan puasa pra-bedah, kalkulator puasa interaktif, manajemen nyeri, dan perawatan luka di rumah untuk pasien & keluarga.
             </p>
           </div>
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex items-center gap-2.5 flex-wrap">
             <button
-              onClick={() => onOpenPatientPortal()}
+              onClick={() => (onOpenEducation ? onOpenEducation() : onOpenPatientPortal())}
               className="px-4 py-2 bg-white text-rose-700 rounded-xl text-xs font-black shadow-md hover:bg-rose-50 transition-all flex items-center gap-1.5"
             >
-              <span>Masuk Portal Pasien</span>
+              <span>Buka Halaman Edukasi</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[11px] text-rose-100 font-medium">
-              Edukasi Pra & Pasca Bedah
-            </span>
+            <button
+              onClick={() => onOpenPatientPortal()}
+              className="px-3 py-2 bg-rose-600/70 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <span>Status Pasien (RM)</span>
+            </button>
           </div>
         </div>
       </div>
