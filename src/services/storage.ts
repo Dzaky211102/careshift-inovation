@@ -7,6 +7,10 @@ import {
   generateInitialMonthlySchedules,
 } from './defaultData';
 import { determineActiveShift } from '../utils/witaTime';
+import {
+  saveEducationArticlesIDB,
+  getEducationArticlesIDB,
+} from './indexedDb';
 
 export const STORAGE_KEYS = {
   NURSES: 'careshift_nurses_v2',
@@ -18,6 +22,62 @@ export const STORAGE_KEYS = {
 };
 
 export class StorageService {
+  // In-memory cache for education articles (ensures data is never lost during runtime)
+  private static _cachedEducationArticles: EducationArticle[] | null = null;
+
+  /**
+   * Safe localStorage setter with QuotaExceededError protection and automatic payload trimming
+   */
+  private static safeSetItem(key: string, value: string): boolean {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (err: unknown) {
+      console.warn(`[StorageService] localStorage.setItem failed for key "${key}":`, err);
+
+      // Handle QuotaExceededError specifically for Education
+      if (key === STORAGE_KEYS.EDUCATION) {
+        try {
+          const parsed: EducationArticle[] = JSON.parse(value);
+          // Strip large base64 media for the localStorage copy only
+          // (Full data is safely persisted in IndexedDB and in-memory cache)
+          const lightweight: EducationArticle[] = parsed.map((art) => ({
+            ...art,
+            imageUrl:
+              art.imageUrl && art.imageUrl.startsWith('data:') && art.imageUrl.length > 50000
+                ? art.imageUrl.slice(0, 80) + '...[idb_cached]'
+                : art.imageUrl,
+            mediaItems: art.mediaItems?.map((m) => ({
+              ...m,
+              url:
+                m.url && m.url.startsWith('data:') && m.url.length > 50000
+                  ? m.url.slice(0, 80) + '...[idb_cached]'
+                  : m.url,
+            })),
+          }));
+
+          localStorage.removeItem(key);
+          localStorage.setItem(key, JSON.stringify(lightweight));
+          console.info(
+            '[StorageService] Successfully saved lightweight articles to localStorage (full media stored in IndexedDB).'
+          );
+          return true;
+        } catch (subErr) {
+          console.warn('[StorageService] Fallback lightweight save also failed:', subErr);
+          try {
+            // Remove bloated key so other keys have space to operate
+            localStorage.removeItem(key);
+          } catch {
+            // Ignore
+          }
+        }
+      }
+
+      // If general quota is exceeded, attempt to clear any stray large item without breaking critical state
+      return false;
+    }
+  }
+
   // --- NURSES ---
   static getNurses(): Nurse[] {
     try {
@@ -31,7 +91,7 @@ export class StorageService {
   }
 
   static saveNurses(nurses: Nurse[]): void {
-    localStorage.setItem(STORAGE_KEYS.NURSES, JSON.stringify(nurses));
+    this.safeSetItem(STORAGE_KEYS.NURSES, JSON.stringify(nurses));
   }
 
   // --- SCHEDULES ---
@@ -48,7 +108,7 @@ export class StorageService {
   }
 
   static saveSchedules(schedules: ShiftDuty[]): void {
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+    this.safeSetItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
   }
 
   static setSchedule(duty: ShiftDuty): void {
@@ -77,23 +137,61 @@ export class StorageService {
   }
 
   static savePatients(patients: Patient[]): void {
-    localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
+    this.safeSetItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
   }
 
   // --- EDUCATION ---
   static getEducationArticles(): EducationArticle[] {
+    // Return in-memory cache if available
+    if (this._cachedEducationArticles && this._cachedEducationArticles.length > 0) {
+      return this._cachedEducationArticles;
+    }
+
     try {
       const data = localStorage.getItem(STORAGE_KEYS.EDUCATION);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const parsed: EducationArticle[] = JSON.parse(data);
+        this._cachedEducationArticles = parsed;
+        return parsed;
+      }
     } catch {
       // Fallback
     }
+
     this.saveEducationArticles(DEFAULT_EDUCATION_ARTICLES);
     return DEFAULT_EDUCATION_ARTICLES;
   }
 
   static saveEducationArticles(articles: EducationArticle[]): void {
-    localStorage.setItem(STORAGE_KEYS.EDUCATION, JSON.stringify(articles));
+    // 1. Keep in memory for instantaneous rendering
+    this._cachedEducationArticles = articles;
+
+    // 2. Persist full data to IndexedDB (virtually unlimited capacity)
+    saveEducationArticlesIDB(articles).catch((err) => {
+      console.warn('[StorageService] IndexedDB save notice:', err);
+    });
+
+    // 3. Persist to localStorage safely with QuotaExceeded protection
+    this.safeSetItem(STORAGE_KEYS.EDUCATION, JSON.stringify(articles));
+  }
+
+  /**
+   * Asynchronously hydrate education articles from IndexedDB
+   * Useful during app startup to load large rich-media items
+   */
+  static async loadEducationArticlesAsync(): Promise<EducationArticle[]> {
+    try {
+      const idbData = await getEducationArticlesIDB();
+      if (idbData && Array.isArray(idbData) && idbData.length > 0) {
+        this._cachedEducationArticles = idbData;
+        // Keep localStorage refreshed safely
+        this.safeSetItem(STORAGE_KEYS.EDUCATION, JSON.stringify(idbData));
+        return idbData;
+      }
+    } catch (err) {
+      console.warn('[StorageService] Error loading education from IndexedDB:', err);
+    }
+    return this.getEducationArticles();
   }
 
   // --- SETTINGS ---
@@ -118,7 +216,7 @@ export class StorageService {
   }
 
   static saveSettings(settings: AppSettings): void {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    this.safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }
 
   // --- ADMIN STATUS ---
@@ -127,7 +225,7 @@ export class StorageService {
   }
 
   static setIsAdmin(isAdmin: boolean): void {
-    localStorage.setItem(STORAGE_KEYS.IS_ADMIN, isAdmin ? 'true' : 'false');
+    this.safeSetItem(STORAGE_KEYS.IS_ADMIN, isAdmin ? 'true' : 'false');
   }
 
   // --- HELPERS ---

@@ -34,6 +34,7 @@ import {
   ZoomIn,
   Sliders,
   Sparkle,
+  Lock,
 } from 'lucide-react';
 import {
   EducationArticle,
@@ -47,6 +48,7 @@ import {
 } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
 import { StorageService } from '../services/storage';
+import { processMediaUpload } from '../utils/mediaCompressor';
 
 interface EducationPortalProps {
   educationArticles: EducationArticle[];
@@ -55,6 +57,7 @@ interface EducationPortalProps {
   onUpdateEducation?: (articles: EducationArticle[]) => void;
   onOpenAdminSettings?: () => void;
   onOpenPatientPortal?: () => void;
+  onOpenLoginModal?: () => void;
 }
 
 // Helper to convert YouTube watch/short URLs into standard embed URLs
@@ -83,6 +86,7 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
   onUpdateEducation,
   onOpenAdminSettings,
   onOpenPatientPortal,
+  onOpenLoginModal,
 }) => {
   const [activeCategory, setActiveCategory] = useState<string>('semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -244,8 +248,16 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
     return `https://wa.me/${rawNumber}?text=${encodeURIComponent(msg)}`;
   };
 
-  // --- MEDIA EDITOR HANDLERS ---
+  // --- MEDIA EDITOR HANDLERS (ADMIN ONLY) ---
   const handleOpenAddModal = () => {
+    if (!isAdmin) {
+      if (onOpenLoginModal) {
+        onOpenLoginModal();
+      } else {
+        alert('Akses Dibatasi: Hanya Admin yang dapat menambah materi edukasi.');
+      }
+      return;
+    }
     setEditingArticleId(null);
     setEditorForm({
       category: 'sebelum_operasi',
@@ -261,6 +273,14 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
   };
 
   const handleOpenEditModal = (article: EducationArticle) => {
+    if (!isAdmin) {
+      if (onOpenLoginModal) {
+        onOpenLoginModal();
+      } else {
+        alert('Akses Dibatasi: Hanya Admin yang dapat mengedit materi edukasi.');
+      }
+      return;
+    }
     setEditingArticleId(article.id);
     setEditorForm({
       category: article.category,
@@ -273,6 +293,26 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
       tags: article.tags ? article.tags.join(', ') : '',
     });
     setIsEditorOpen(true);
+  };
+
+  const handleDeleteArticle = (articleId: string) => {
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang dapat menghapus materi edukasi.');
+      return;
+    }
+    if (window.confirm('Apakah Anda yakin ingin menghapus modul materi edukasi ini?')) {
+      const updatedArticles = educationArticles.filter((a) => a.id !== articleId);
+      if (onUpdateEducation) {
+        onUpdateEducation(updatedArticles);
+      } else {
+        StorageService.saveEducationArticles(updatedArticles);
+      }
+      if (selectedArticle && selectedArticle.id === articleId) {
+        setSelectedArticle(null);
+      }
+      setIsEditorOpen(false);
+      setEditingArticleId(null);
+    }
   };
 
   const handleAddMediaItem = (type: MediaType) => {
@@ -308,21 +348,33 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
     }));
   };
 
-  const handleMediaFileUpload = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+  const handleMediaFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        handleUpdateMediaItem(id, 'url', reader.result);
+    try {
+      const { url, warning } = await processMediaUpload(file);
+      if (warning) {
+        alert(warning);
       }
-    };
-    reader.readAsDataURL(file);
+      handleUpdateMediaItem(id, 'url', url);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          handleUpdateMediaItem(id, 'url', reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveEditor = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang dapat menyimpan perubahan materi edukasi.');
+      return;
+    }
     if (!editorForm.title.trim()) return;
 
     const lines = editorForm.content
@@ -368,9 +420,10 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
       updatedArticles = [payload, ...educationArticles];
     }
 
-    StorageService.saveEducationArticles(updatedArticles);
     if (onUpdateEducation) {
       onUpdateEducation(updatedArticles);
+    } else {
+      StorageService.saveEducationArticles(updatedArticles);
     }
 
     // If currently viewing this article, refresh it
@@ -561,15 +614,32 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
                 {educationArticles.length} Modul Terverifikasi
               </span>
 
-              {/* Direct Add/Edit Education Button directly on this page */}
-              <button
-                onClick={handleOpenAddModal}
-                className="px-3 py-1 rounded-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-black shadow-sm flex items-center gap-1.5 transition-all"
-                title="Tambah materi edukasi baru lengkap dengan gambar, video, dan gif"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Tambah Materi Edukasi</span>
-              </button>
+              {/* Admin vs Non-Admin Action Button */}
+              {isAdmin ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleOpenAddModal}
+                    className="px-3.5 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-black shadow-sm flex items-center gap-1.5 transition-all"
+                    title="Tambah materi edukasi baru lengkap dengan gambar, video, dan gif (Khusus Admin)"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Tambah Materi Edukasi</span>
+                  </button>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 text-[11px] font-black flex items-center gap-1 shadow-2xs">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Mode Admin: Hak Edit Aktif</span>
+                  </span>
+                </div>
+              ) : (
+                <button
+                  onClick={onOpenLoginModal}
+                  className="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 text-xs font-black border border-slate-300 shadow-2xs flex items-center gap-1.5 transition-all"
+                  title="Login Admin untuk menambah atau mengedit materi edukasi"
+                >
+                  <Lock className="w-3.5 h-3.5 text-purple-700" />
+                  <span>Login Admin untuk Edit Materi</span>
+                </button>
+              )}
             </div>
 
             <h1 className="font-display font-black text-2xl md:text-3xl lg:text-4xl text-slate-950 tracking-tight leading-snug">
@@ -1048,13 +1118,15 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
 
-                      <button
-                        onClick={() => handleOpenEditModal(article)}
-                        className="p-2.5 bg-slate-100 hover:bg-purple-100 text-slate-800 hover:text-purple-900 rounded-xl transition-colors font-bold"
-                        title="Edit Modul & Media Edukasi Ini"
-                      >
-                        <PenLine className="w-4 h-4 text-purple-700" />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleOpenEditModal(article)}
+                          className="p-2.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl transition-colors font-bold border border-purple-200"
+                          title="Edit Modul & Media Edukasi Ini (Khusus Admin)"
+                        >
+                          <PenLine className="w-4 h-4 text-purple-700" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1078,14 +1150,25 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleOpenEditModal(selectedArticle)}
-                  className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors"
-                  title="Edit materi atau kelola gambar/video/gif"
-                >
-                  <PenLine className="w-3.5 h-3.5" />
-                  <span>Edit Media / Materi</span>
-                </button>
+                {isAdmin ? (
+                  <button
+                    onClick={() => handleOpenEditModal(selectedArticle)}
+                    className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors"
+                    title="Edit materi atau kelola gambar/video/gif (Khusus Admin)"
+                  >
+                    <PenLine className="w-3.5 h-3.5" />
+                    <span>Edit Media / Materi</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={onOpenLoginModal}
+                    className="hidden sm:flex px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold items-center gap-1.5 border border-slate-200 transition-colors"
+                    title="Login Admin untuk mengedit materi edukasi"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-purple-700" />
+                    <span>Mode Pasien (Hanya Baca)</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => setSelectedArticle(null)}
@@ -1280,14 +1363,20 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
           <div className="clay-card bg-white w-full max-w-4xl max-h-[94vh] flex flex-col justify-between rounded-3xl border-2 border-purple-300 shadow-2xl relative overflow-hidden">
             {/* Header */}
             <div className="p-4 md:p-5 border-b border-purple-200 flex items-center justify-between gap-4 bg-purple-50/80 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-xs">
                   <PenLine className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-display font-black text-base text-slate-950">
-                    {editingArticleId ? 'Edit Modul & Media Edukasi' : 'Tambah Modul Edukasi Baru'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-black text-base text-slate-950">
+                      {editingArticleId ? 'Edit Modul & Media Edukasi' : 'Tambah Modul Edukasi Baru'}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 text-[10px] font-black flex items-center gap-1 shadow-2xs">
+                      <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                      <span>Khusus Admin</span>
+                    </span>
+                  </div>
                   <p className="text-[11px] font-bold text-slate-700">
                     Atur teks instruksi, tambah gambar, animasi GIF, dan video dengan bebas penempatan & rasio resolusi
                   </p>
@@ -1689,13 +1778,26 @@ export const EducationPortal: React.FC<EducationPortalProps> = ({
 
             {/* Footer Buttons */}
             <div className="p-4 border-t border-purple-200 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsEditorOpen(false)}
-                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-xl text-xs font-black transition-colors"
-              >
-                Batal
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditorOpen(false)}
+                  className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-900 rounded-xl text-xs font-black transition-colors"
+                >
+                  Batal
+                </button>
+                {editingArticleId && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteArticle(editingArticleId)}
+                    className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 rounded-xl text-xs font-black transition-colors flex items-center gap-1.5"
+                    title="Hapus materi edukasi ini"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Hapus Materi</span>
+                  </button>
+                )}
+              </div>
 
               <button
                 type="submit"

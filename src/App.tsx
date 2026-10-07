@@ -86,8 +86,21 @@ export default function App() {
 
     const unsubEdu = FirebaseSyncService.subscribeEducation((remoteEdu) => {
       setEducationArticles(remoteEdu);
-      StorageService.saveEducationArticles(remoteEdu);
+      try {
+        StorageService.saveEducationArticles(remoteEdu);
+      } catch (err) {
+        console.warn('[App] Error saving remote education:', err);
+      }
     });
+
+    // Hydrate rich education articles from local IndexedDB if available
+    StorageService.loadEducationArticlesAsync()
+      .then((idbArticles) => {
+        if (idbArticles && idbArticles.length > 0) {
+          setEducationArticles(idbArticles);
+        }
+      })
+      .catch((err) => console.warn('[App] IDB hydration notice:', err));
 
     return () => {
       unsubNurses();
@@ -171,14 +184,32 @@ export default function App() {
   };
 
   const handleUpdateEducation = (updated: EducationArticle[]) => {
-    educationArticles.forEach((oldEdu) => {
-      if (!updated.some((e) => e.id === oldEdu.id)) {
-        FirebaseSyncService.deleteEducationOnline(oldEdu.id);
-      }
-    });
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang dapat mengedit materi edukasi.');
+      return;
+    }
     setEducationArticles(updated);
-    StorageService.saveEducationArticles(updated);
-    updated.forEach((edu) => FirebaseSyncService.saveEducationOnline(edu));
+    try {
+      StorageService.saveEducationArticles(updated);
+    } catch (err) {
+      console.warn('[App] Local education save notice:', err);
+    }
+
+    // Safely sync to Firebase without blocking UI or crashing
+    try {
+      educationArticles.forEach((oldEdu) => {
+        if (!updated.some((e) => e.id === oldEdu.id)) {
+          FirebaseSyncService.deleteEducationOnline(oldEdu.id).catch(() => {});
+        }
+      });
+      updated.forEach((edu) => {
+        FirebaseSyncService.saveEducationOnline(edu).catch((err) => {
+          console.warn('[App] Cloud education sync notice (document might exceed 1MB limit for offline files):', err);
+        });
+      });
+    } catch (err) {
+      console.warn('[App] Firebase education sync notice:', err);
+    }
   };
 
   const handleUpdateSettings = (updated: AppSettings) => {
@@ -339,6 +370,7 @@ export default function App() {
                 onUpdateEducation={handleUpdateEducation}
                 onOpenAdminSettings={() => setActiveTab('settings')}
                 onOpenPatientPortal={() => setActiveTab('patient')}
+                onOpenLoginModal={() => setIsLoginModalOpen(true)}
               />
             )}
 

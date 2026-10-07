@@ -50,6 +50,7 @@ import {
 import { ImageWithFallback } from './ImageWithFallback';
 import { ImageCropperModal } from './ImageCropperModal';
 import { StorageService } from '../services/storage';
+import { processMediaUpload } from '../utils/mediaCompressor';
 import {
   DEFAULT_SHIFT_CONFIGS,
   normalizeTimeToColon,
@@ -240,20 +241,28 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     }));
   };
 
-  const handleEduMediaFileUpload = (
+  const handleEduMediaFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     mediaId: string
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      if (dataUrl) {
-        handleUpdateEduMedia(mediaId, 'url', dataUrl);
+    try {
+      const { url, warning } = await processMediaUpload(file);
+      if (warning) {
+        alert(warning);
       }
-    };
-    reader.readAsDataURL(file);
+      handleUpdateEduMedia(mediaId, 'url', url);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (dataUrl) {
+          handleUpdateEduMedia(mediaId, 'url', dataUrl);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
     e.target.value = '';
   };
 
@@ -1818,7 +1827,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     a.id === editingEduId ? updatedArt : a
                   );
                   onUpdateEducation(updated);
-                  StorageService.saveEducationArticles(updated);
 
                   setEduForm({
                     category: 'sebelum_operasi',
@@ -1856,7 +1864,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
                   const updated = [newArt, ...educationArticles];
                   onUpdateEducation(updated);
-                  StorageService.saveEducationArticles(updated);
 
                   setEduForm({
                     category: 'sebelum_operasi',
@@ -2325,7 +2332,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       if (confirm(`Yakin ingin menghapus materi edukasi "${art.title}"?`)) {
                         const updated = educationArticles.filter((a) => a.id !== art.id);
                         onUpdateEducation(updated);
-                        StorageService.saveEducationArticles(updated);
                         if (editingEduId === art.id) {
                           setIsEduFormOpen(false);
                           setEditingEduId(null);
