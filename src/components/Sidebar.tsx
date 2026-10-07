@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   House,
   CalendarDays,
@@ -10,9 +10,6 @@ import {
   ShieldCheck,
   ShieldAlert,
   Sparkles,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 
@@ -35,9 +32,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenLoginModal,
   onLogoutAdmin,
 }) => {
-  // Mobile Floating Side Dock collapse toggle
-  const [isSideDockExpanded, setIsSideDockExpanded] = useState(true);
-
   const navItems = [
     { id: 'dashboard', label: 'Sif Hari Ini', shortLabel: 'Sif', icon: House, badge: 'Live' },
     { id: 'monthly', label: 'Jadwal Perawat', shortLabel: 'Jadwal', icon: CalendarDays, badge: 'Roster' },
@@ -232,69 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* 3. MOBILE FLOATING SIDE TOOLBAR (Mengambang di samping)   */}
-      {/* TETAP IKUT SAAT DI SCROLL! Tidak perlu kembali ke atas!   */}
-      {/* ======================================================== */}
-      <div className="md:hidden fixed left-2 top-1/2 -translate-y-1/2 z-40 flex items-center pointer-events-none transition-all duration-300 select-none">
-        <div className="pointer-events-auto flex items-center">
-          {/* Expanded Floating Toolbar */}
-          {isSideDockExpanded ? (
-            <div className="bg-slate-950/90 backdrop-blur-xl border-2 border-purple-300/60 shadow-[0_8px_30px_rgb(0,0,0,0.35)] rounded-2xl p-1.5 flex flex-col gap-1.5 items-center transition-all animate-fadeIn">
-              {/* Collapse button on top */}
-              <button
-                onClick={() => setIsSideDockExpanded(false)}
-                className="w-7 h-7 rounded-xl bg-purple-900/60 hover:bg-purple-800 text-purple-200 flex items-center justify-center transition-colors mb-0.5"
-                title="Sembunyikan toolbar samping"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 text-white" />
-              </button>
-
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onTabChange(item.id)}
-                    className={`group relative flex flex-col items-center justify-center w-10 h-10 rounded-xl transition-all duration-150 ${
-                      isActive
-                        ? 'bg-gradient-to-tr from-purple-600 to-indigo-500 text-white shadow-md shadow-purple-500/50 scale-105 border border-purple-200'
-                        : 'bg-slate-800/80 text-slate-200 hover:bg-slate-700 hover:text-white'
-                    }`}
-                    title={item.label}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="text-[8px] font-black tracking-tight leading-none mt-0.5">
-                      {item.shortLabel}
-                    </span>
-
-                    {/* Active Glow Dot */}
-                    {isActive && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-950 animate-pulse" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            /* Collapsed mini toggle button sticking to left edge */
-            <button
-              onClick={() => setIsSideDockExpanded(true)}
-              className="bg-slate-950/90 backdrop-blur-md border-2 border-purple-400 text-white rounded-r-2xl py-3 px-1 shadow-2xl flex flex-col items-center gap-1 active:scale-95 transition-transform"
-              title="Buka toolbar menu samping"
-            >
-              <Menu className="w-3.5 h-3.5 text-purple-300" />
-              <span className="text-[8px] font-black uppercase writing-vertical tracking-widest text-purple-200 py-1" style={{ writingMode: 'vertical-rl' }}>
-                Menu
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 text-white" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ======================================================== */}
-      {/* 4. MOBILE FIXED BOTTOM NAVIGATION DOCK                    */}
+      {/* 3. MOBILE FIXED BOTTOM NAVIGATION DOCK                    */}
       {/* High-contrast, dark typography, thumb-friendly dock       */}
       {/* ======================================================== */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/98 backdrop-blur-xl border-t-2 border-purple-200 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] px-2 py-1.5 flex items-center justify-around">
