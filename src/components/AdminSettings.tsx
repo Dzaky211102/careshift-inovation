@@ -33,7 +33,12 @@ import {
   Film,
   Sliders,
   Info,
+  Star,
+  MessageSquareHeart,
+  ExternalLink,
+  Copy,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
   Nurse,
   Patient,
@@ -46,6 +51,7 @@ import {
   AppSettings,
   ShiftConfig,
   DashboardImage,
+  SurveyFeedback,
 } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ImageCropperModal } from './ImageCropperModal';
@@ -63,6 +69,7 @@ interface AdminSettingsProps {
   nurses: Nurse[];
   patients: Patient[];
   educationArticles: EducationArticle[];
+  surveys?: SurveyFeedback[];
   settings: AppSettings;
   isAdmin: boolean;
   onSetIsAdmin: (isAdmin: boolean) => void;
@@ -70,12 +77,14 @@ interface AdminSettingsProps {
   onUpdatePatients: (patients: Patient[]) => void;
   onUpdateEducation: (articles: EducationArticle[]) => void;
   onUpdateSettings: (settings: AppSettings) => void;
+  onDeleteSurvey?: (id: string) => void;
 }
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({
   nurses,
   patients,
   educationArticles,
+  surveys = [],
   settings,
   isAdmin,
   onSetIsAdmin,
@@ -83,11 +92,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onUpdatePatients,
   onUpdateEducation,
   onUpdateSettings,
+  onDeleteSurvey,
 }) => {
   // Navigation Tabs within Admin
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'shift_settings' | 'dashboard_images' | 'perawat' | 'pasien_csv' | 'edukasi' | 'tampilan'
+    'shift_settings' | 'dashboard_images' | 'perawat' | 'pasien_csv' | 'edukasi' | 'survey_settings' | 'tampilan'
   >('shift_settings');
+
+  const [surveySaveSuccess, setSurveySaveSuccess] = useState(false);
+  const [surveyFilterStar, setSurveyFilterStar] = useState<number | 'all'>('all');
+  const [surveySearch, setSurveySearch] = useState('');
 
   // PIN Login State
   const [pinInput, setPinInput] = useState('');
@@ -778,6 +792,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           { id: 'perawat', label: 'Daftar Perawat', icon: Users, badge: `${nurses.length}` },
           { id: 'pasien_csv', label: 'Pasien & CSV', icon: FileSpreadsheet, badge: `${patients.length}` },
           { id: 'edukasi', label: 'Materi Edukasi', icon: BookOpen, badge: `${educationArticles.length}` },
+          { id: 'survey_settings', label: 'Survei & Saran', icon: MessageSquareHeart, badge: `${surveys.length}` },
           { id: 'tampilan', label: 'Tampilan & Sandi', icon: Palette, badge: 'Sistem' },
         ].map((item) => {
           const Icon = item.icon;
@@ -2386,6 +2401,363 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB: PENGATURAN SURVEI KEPUASAN & KRITIK SARAN */}
+      {/* ========================================================= */}
+      {activeAdminTab === 'survey_settings' && (
+        <div className="space-y-6">
+          {/* 1. GOOGLE FORM LINK SETTINGS CARD */}
+          <div className="clay-card bg-white p-6 border border-purple-100 rounded-3xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-purple-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-lg text-slate-900 leading-tight">
+                    Pengaturan Tautan Google Form Survei Kepuasan
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Tautkan kuesioner Google Form resmi rumah sakit agar pasien/keluarga dapat mengisi langsung.
+                  </p>
+                </div>
+              </div>
+
+              {surveySaveSuccess && (
+                <div className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black flex items-center gap-1.5 animate-fadeIn">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>Tautan Berhasil Disimpan!</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Enable / Disable Switch */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                <div>
+                  <p className="text-xs font-black text-slate-800">
+                    Tampilkan Banner Tautan Google Form di Halaman Survei
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Jika diaktifkan, pasien dan keluarga akan melihat tombol pintasan menuju Google Form Anda.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={generalForm.satisfactionSurveyEnabled !== false}
+                    onChange={(e) => {
+                      const updated = {
+                        ...generalForm,
+                        satisfactionSurveyEnabled: e.target.checked,
+                      };
+                      setGeneralForm(updated);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+
+              {/* URL Input */}
+              <div className="space-y-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
+                  Link / URL Google Form Survei Kepuasan
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <FileSpreadsheet className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="url"
+                      value={generalForm.satisfactionSurveyGoogleFormUrl || ''}
+                      onChange={(e) =>
+                        setGeneralForm({
+                          ...generalForm,
+                          satisfactionSurveyGoogleFormUrl: e.target.value,
+                        })
+                      }
+                      placeholder="https://docs.google.com/forms/d/e/.../viewform"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-2 border-slate-200 focus:border-purple-600 focus:bg-white rounded-2xl text-xs md:text-sm text-slate-900 placeholder:text-slate-400 font-mono font-medium outline-none transition-all"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUpdateSettings(generalForm);
+                        StorageService.saveSettings(generalForm);
+                        setSurveySaveSuccess(true);
+                        setTimeout(() => setSurveySaveSuccess(false), 3000);
+                      }}
+                      className="px-4 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Link</span>
+                    </button>
+
+                    {generalForm.satisfactionSurveyGoogleFormUrl && (
+                      <a
+                        href={generalForm.satisfactionSurveyGoogleFormUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                        title="Buka dan uji tautan Google Form"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Uji Tautan</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Instructions Guide */}
+              <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-100 text-slate-700 text-xs space-y-1.5">
+                <p className="font-black text-purple-900 flex items-center gap-1.5">
+                  <Info className="w-4 h-4 text-purple-600" />
+                  <span>Petunjuk Membuat & Menautkan Google Form:</span>
+                </p>
+                <ol className="list-decimal list-inside space-y-1 text-slate-600 font-medium pl-1">
+                  <li>Buka <strong>Google Forms</strong> (forms.google.com) dan buat kuesioner kepuasan pasien.</li>
+                  <li>Klik tombol <strong>Kirim (Send)</strong> di pojok kanan atas formulir.</li>
+                  <li>Pilih tab ikon <strong>Tautan (Link)</strong>, centang <em>Perpendek URL</em> jika diinginkan, lalu klik <strong>Salin (Copy)</strong>.</li>
+                  <li>Tempelkan tautan yang disalin ke kolom di atas, lalu klik <strong>Simpan Link</strong>.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. REKAP HASIL KRITIK & SARAN / FEEDBACK PASIEN */}
+          <div className="clay-card bg-white p-6 border border-purple-100 rounded-3xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-purple-100">
+              <div>
+                <h3 className="font-display font-black text-lg text-slate-900 leading-tight">
+                  Daftar & Rekap Penilaian Bintang dan Kritik Saran
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Total {surveys.length} masukan tersimpan di sistem CareShift.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (surveys.length === 0) {
+                      alert('Belum ada data ulasan untuk diekspor.');
+                      return;
+                    }
+
+                    const rows = surveys.map((s, idx) => ({
+                      'No': idx + 1,
+                      'Waktu (WITA)': s.createdAt,
+                      'Nama / Inisial': s.name,
+                      'Status': s.roleType.toUpperCase(),
+                      'Kamar / Bed': s.roomNumber || '-',
+                      'Rating Bintang': `${s.rating} dari 5`,
+                      'Kategori': s.category,
+                      'Kritik & Saran': s.comments,
+                    }));
+
+                    const worksheet = XLSX.utils.json_to_sheet(rows);
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, 'Survei Kepuasan');
+                    XLSX.writeFile(
+                      workbook,
+                      `CareShift-Rekap-Survei-Kepuasan-${new Date().toISOString().slice(0, 10)}.xlsx`
+                    );
+                  }}
+                  className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-md active:scale-95 transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Ekspor ke Excel (.xlsx)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100 text-center">
+                <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider block">
+                  Total Responden
+                </span>
+                <span className="text-2xl font-black font-display text-purple-950 mt-1 block">
+                  {surveys.length}
+                </span>
+              </div>
+
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-center">
+                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">
+                  Rata-rata Rating
+                </span>
+                <span className="text-2xl font-black font-display text-amber-900 mt-1 flex items-center justify-center gap-1">
+                  <span>
+                    {surveys.length > 0
+                      ? (surveys.reduce((sum, s) => sum + s.rating, 0) / surveys.length).toFixed(1)
+                      : '5.0'}
+                  </span>
+                  <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                </span>
+              </div>
+
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
+                <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">
+                  Puas (Bintang 4-5)
+                </span>
+                <span className="text-2xl font-black font-display text-emerald-950 mt-1 block">
+                  {surveys.length > 0
+                    ? `${Math.round(
+                        (surveys.filter((s) => s.rating >= 4).length / surveys.length) * 100
+                      )}%`
+                    : '100%'}
+                </span>
+              </div>
+
+              <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 text-center">
+                <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider block">
+                  Perhatian (⭐ 1-3)
+                </span>
+                <span className="text-2xl font-black font-display text-rose-950 mt-1 block">
+                  {surveys.filter((s) => s.rating <= 3).length} Masukan
+                </span>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <div className="relative w-full sm:w-72">
+                <input
+                  type="text"
+                  value={surveySearch}
+                  onChange={(e) => setSurveySearch(e.target.value)}
+                  placeholder="Cari nama, inisial, kamar, saran..."
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-bold outline-none focus:border-purple-600 focus:bg-white"
+                />
+              </div>
+
+              {/* Star Filter */}
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSurveyFilterStar('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    surveyFilterStar === 'all'
+                      ? 'bg-purple-700 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Semua ({surveys.length})
+                </button>
+                {[5, 4, 3, 2, 1].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSurveyFilterStar(s)}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                      surveyFilterStar === s
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span>{s}</span>
+                    <Star className="w-3 h-3 fill-current" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Surveys Table / List */}
+            {surveys.length === 0 ? (
+              <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200">
+                <MessageSquareHeart className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-600">Belum ada masukan tersimpan.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {surveys
+                  .filter((s) => {
+                    if (surveyFilterStar !== 'all' && s.rating !== surveyFilterStar) return false;
+                    if (surveySearch.trim()) {
+                      const q = surveySearch.toLowerCase();
+                      const matchName = s.name.toLowerCase().includes(q);
+                      const matchRoom = s.roomNumber?.toLowerCase().includes(q);
+                      const matchComment = s.comments.toLowerCase().includes(q);
+                      return matchName || matchRoom || matchComment;
+                    }
+                    return true;
+                  })
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-purple-200 hover:shadow-xs transition-all flex flex-col md:flex-row md:items-start justify-between gap-3"
+                    >
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-display font-black text-sm text-slate-900">
+                            {item.name}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800">
+                            {item.roleType}
+                          </span>
+                          {item.roomNumber && (
+                            <span className="text-xs text-slate-500 font-semibold">
+                              · {item.roomNumber}
+                            </span>
+                          )}
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            ({item.createdAt})
+                          </span>
+                        </div>
+
+                        {/* Stars & Category */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((st) => (
+                              <Star
+                                key={st}
+                                className={`w-3.5 h-3.5 ${
+                                  st <= item.rating
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-slate-200'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
+                            {item.category.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+
+                        <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-medium bg-white p-3 rounded-xl border border-slate-100">
+                          "{item.comments}"
+                        </p>
+                      </div>
+
+                      {onDeleteSurvey && (
+                        <div className="flex items-center md:flex-col justify-end gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Hapus masukan dari "${item.name}"?`)) {
+                                onDeleteSurvey(item.id);
+                              }
+                            }}
+                            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Hapus masukan ini"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}

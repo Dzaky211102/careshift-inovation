@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from './services/storage';
 import { FirebaseSyncService } from './services/firebase';
-import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings } from './types';
+import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ShiftDisplayDashboard } from './components/ShiftDisplayDashboard';
@@ -9,6 +9,7 @@ import { MonthlyScheduleCalendar } from './components/MonthlyScheduleCalendar';
 import { CanvaSlidePresenter } from './components/CanvaSlidePresenter';
 import { PatientPortal } from './components/PatientPortal';
 import { EducationPortal } from './components/EducationPortal';
+import { SurveyFeedbackPortal } from './components/SurveyFeedbackPortal';
 import { AdminSettings } from './components/AdminSettings';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { getWitaDateString, determineActiveShift } from './utils/witaTime';
@@ -21,6 +22,7 @@ export default function App() {
   const [educationArticles, setEducationArticles] = useState<EducationArticle[]>(() =>
     StorageService.getEducationArticles()
   );
+  const [surveys, setSurveys] = useState<SurveyFeedback[]>(() => StorageService.getSurveys());
   const [settings, setSettings] = useState<AppSettings>(() => StorageService.getSettings());
 
   // Role Access Control (Requirement 2)
@@ -58,7 +60,8 @@ export default function App() {
       schedules,
       patients,
       settings,
-      educationArticles
+      educationArticles,
+      surveys
     );
 
     // Realtime listeners
@@ -93,6 +96,11 @@ export default function App() {
       }
     });
 
+    const unsubSurveys = FirebaseSyncService.subscribeSurveys((remoteSurveys) => {
+      setSurveys(remoteSurveys);
+      StorageService.saveSurveys(remoteSurveys);
+    });
+
     // Hydrate rich education articles from local IndexedDB if available
     StorageService.loadEducationArticlesAsync()
       .then((idbArticles) => {
@@ -108,6 +116,7 @@ export default function App() {
       unsubPatients();
       unsubSettings();
       unsubEdu();
+      unsubSurveys();
     };
   }, []);
 
@@ -220,6 +229,22 @@ export default function App() {
     FirebaseSyncService.saveSettingsOnline(updated);
   };
 
+  const handleCreateSurvey = (newSurvey: SurveyFeedback) => {
+    const updated = StorageService.addSurvey(newSurvey);
+    setSurveys(updated);
+    FirebaseSyncService.saveSurveyOnline(newSurvey);
+  };
+
+  const handleDeleteSurvey = (id: string) => {
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang dapat menghapus data ulasan.');
+      return;
+    }
+    const updated = StorageService.deleteSurvey(id);
+    setSurveys(updated);
+    FirebaseSyncService.deleteSurveyOnline(id);
+  };
+
   const handleLogoutAdmin = () => {
     setIsAdmin(false);
     StorageService.setIsAdmin(false);
@@ -301,6 +326,7 @@ export default function App() {
                   setActiveTab('patient');
                 }}
                 onOpenEducation={() => setActiveTab('education')}
+                onOpenSurvey={() => setActiveTab('survey')}
                 onOpenMonthlySchedule={() => setActiveTab('monthly')}
                 onOpenImageSettings={() => setActiveTab('settings')}
               />
@@ -342,6 +368,7 @@ export default function App() {
                 isAdmin={isAdmin}
                 onOpenEducationSettings={() => setActiveTab('settings')}
                 onOpenEducationPortal={() => setActiveTab('education')}
+                onOpenSurveyPortal={() => setActiveTab('survey')}
                 onUpdatePatientChecklist={(patientId, checkId, completed) => {
                   const updated = patients.map((p) =>
                     p.id === patientId && p.checklist
@@ -374,12 +401,25 @@ export default function App() {
               />
             )}
 
+            {/* TAB: SURVEI KEPUASAN & KRITIK SARAN */}
+            {activeTab === 'survey' && (
+              <SurveyFeedbackPortal
+                surveys={surveys}
+                settings={settings}
+                isAdmin={isAdmin}
+                onSubmitSurvey={handleCreateSurvey}
+                onDeleteSurvey={handleDeleteSurvey}
+                onOpenAdminSettings={() => setActiveTab('settings')}
+              />
+            )}
+
             {/* TAB: ADMIN SETTINGS */}
             {activeTab === 'settings' && (
               <AdminSettings
                 nurses={nurses}
                 patients={patients}
                 educationArticles={educationArticles}
+                surveys={surveys}
                 settings={settings}
                 isAdmin={isAdmin}
                 onSetIsAdmin={(admin) => {
@@ -390,6 +430,7 @@ export default function App() {
                 onUpdatePatients={handleUpdatePatients}
                 onUpdateEducation={handleUpdateEducation}
                 onUpdateSettings={handleUpdateSettings}
+                onDeleteSurvey={handleDeleteSurvey}
               />
             )}
           </div>

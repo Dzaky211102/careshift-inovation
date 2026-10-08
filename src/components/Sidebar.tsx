@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Sparkles,
+  MessageSquareHeart,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 
@@ -38,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'canva', label: 'Tampilan TV', shortLabel: 'TV', icon: Presentation, badge: 'Otomatis' },
     { id: 'patient', label: 'Status Pasien', shortLabel: 'Pasien', icon: HeartHandshake, badge: 'RM' },
     { id: 'education', label: 'Edukasi Pasien', shortLabel: 'Edukasi', icon: BookOpen, badge: 'Materi' },
+    { id: 'survey', label: 'Survei & Saran', shortLabel: 'Survei', icon: MessageSquareHeart, badge: 'Rating' },
     { id: 'settings', label: 'Pengaturan Admin', shortLabel: 'Admin', icon: Settings, badge: 'Admin' },
   ];
 

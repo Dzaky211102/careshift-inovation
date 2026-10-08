@@ -20,6 +20,8 @@ import {
   Lock,
   Usb,
   BookOpen,
+  Star,
+  MessageSquareHeart,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConnectTvModal } from './ConnectTvModal';
@@ -44,6 +46,7 @@ interface ShiftDisplayDashboardProps {
   onOpenCanva: () => void;
   onOpenPatientPortal: (rmOrName?: string) => void;
   onOpenEducation?: () => void;
+  onOpenSurvey?: () => void;
   onOpenMonthlySchedule: () => void;
   onOpenImageSettings: () => void;
 }
@@ -61,6 +64,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
   onOpenCanva,
   onOpenPatientPortal,
   onOpenEducation,
+  onOpenSurvey,
   onOpenMonthlySchedule,
   onOpenImageSettings,
 }) => {
@@ -626,7 +630,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
       </div>
 
       {/* Slide TV & Patient Portal Quick Links */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
         <div className="clay-card-flat bg-gradient-to-r from-purple-600 to-[#7A5CBF] p-5 text-white flex flex-col justify-between shadow-lg shadow-purple-500/20 rounded-3xl">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -639,27 +643,27 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
               Tampilan layar TV ruangan menampilkan perawat yang sedang bertugas ({assignedNurseCount} staf pada {selectedConfig.name}). Berganti otomatis mengikuti jam dinas.
             </p>
           </div>
-          <div className="mt-4 flex items-center gap-3 flex-wrap">
+          <div className="mt-4 flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => setIsConnectTvOpen(true)}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
+              className="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
             >
               <Tv className="w-3.5 h-3.5" />
-              <span>Sambungkan ke TV</span>
+              <span>Sambungkan</span>
             </button>
             <button
               onClick={() => setIsUsbModalOpen(true)}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
+              className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-1.5"
               title="Unduh paket slide untuk TV biasa (putar via Flashdisk USB)"
             >
               <Usb className="w-3.5 h-3.5" />
-              <span>Paket Flashdisk TV</span>
+              <span>Flashdisk USB</span>
             </button>
             <button
               onClick={onOpenCanva}
-              className="px-4 py-2 bg-white text-purple-800 rounded-xl text-xs font-black shadow-md hover:bg-purple-50 transition-all flex items-center gap-1.5"
+              className="px-3 py-2 bg-white text-purple-800 rounded-xl text-xs font-black shadow-md hover:bg-purple-50 transition-all flex items-center gap-1.5"
             >
-              <span>Buka Tampilan TV</span>
+              <span>Buka TV</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -680,9 +684,9 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
           <div className="mt-4 flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => (onOpenEducation ? onOpenEducation() : onOpenPatientPortal())}
-              className="px-4 py-2 bg-white text-rose-700 rounded-xl text-xs font-black shadow-md hover:bg-rose-50 transition-all flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-white text-rose-700 rounded-xl text-xs font-black shadow-md hover:bg-rose-50 transition-all flex items-center gap-1.5"
             >
-              <span>Buka Halaman Edukasi</span>
+              <span>Buka Edukasi</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
             <button
@@ -691,6 +695,42 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
             >
               <span>Status Pasien (RM)</span>
             </button>
+          </div>
+        </div>
+
+        {/* 3rd Card: Survei Kepuasan & Kritik Saran */}
+        <div className="clay-card-flat bg-gradient-to-r from-indigo-600 to-purple-700 p-5 text-white flex flex-col justify-between shadow-lg shadow-indigo-500/20 rounded-3xl">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                <Star className="w-4 h-4 fill-amber-300 text-amber-300" />
+              </div>
+              <h3 className="font-display font-black text-base">Survei Kepuasan & Saran</h3>
+            </div>
+            <p className="text-xs text-indigo-100 leading-relaxed">
+              Beri penilaian bintang 1-5 serta kritik atau saran pelayanan rawat inap. Tersambung juga dengan link kuesioner resmi Google Form.
+            </p>
+          </div>
+          <div className="mt-4 flex items-center gap-2.5 flex-wrap">
+            <button
+              onClick={() => onOpenSurvey && onOpenSurvey()}
+              className="px-3.5 py-2 bg-white text-purple-900 rounded-xl text-xs font-black shadow-md hover:bg-purple-50 transition-all flex items-center gap-1.5"
+            >
+              <MessageSquareHeart className="w-3.5 h-3.5 text-purple-700" />
+              <span>Isi Survei & Saran</span>
+            </button>
+            {settings.satisfactionSurveyGoogleFormUrl && (
+              <a
+                href={settings.satisfactionSurveyGoogleFormUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 bg-purple-950/40 hover:bg-purple-950/60 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                title="Buka Google Form resmi"
+              >
+                <span>Google Form</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
         </div>
       </div>

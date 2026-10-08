@@ -101,6 +101,18 @@ export interface EducationArticle {
   tags: string[];
 }
 
+export interface SurveyFeedback {
+  id: string;
+  name: string; // nama atau inisial
+  roleType: 'pasien' | 'keluarga' | 'pengunjung';
+  roomNumber?: string;
+  rating: number; // 1 to 5
+  category: 'pelayanan_perawat' | 'kebersihan' | 'komunikasi' | 'kecepatan_respon' | 'umum';
+  comments: string;
+  createdAt: string; // WITA or ISO date string
+  status?: 'reviewed' | 'pending';
+}
+
 export interface AppSettings {
   hospitalName: string;
   wardName: string;
@@ -124,6 +136,8 @@ export interface AppSettings {
   shiftConfigs: ShiftConfig[];
   dashboardImages: DashboardImage[];
   selectedDashboardImageId?: string;
+  satisfactionSurveyGoogleFormUrl?: string; // Link Google Form untuk survey kepuasan
+  satisfactionSurveyEnabled?: boolean; // Tampilkan integrasi Google Form
   googleSheets: {
     enabled: boolean;
     webAppUrl: string;

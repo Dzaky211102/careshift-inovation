@@ -21,6 +21,8 @@ import {
   Link2,
   PenLine,
   BookOpen,
+  MessageSquareHeart,
+  Star,
 } from 'lucide-react';
 import { Patient, EducationArticle, AppSettings } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -34,6 +36,7 @@ interface PatientPortalProps {
   isAdmin?: boolean;
   onOpenEducationSettings?: () => void;
   onOpenEducationPortal?: () => void;
+  onOpenSurveyPortal?: () => void;
 }
 
 export const PatientPortal: React.FC<PatientPortalProps> = ({
@@ -45,6 +48,7 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
   isAdmin = false,
   onOpenEducationSettings,
   onOpenEducationPortal,
+  onOpenSurveyPortal,
 }) => {
   const [searchInput, setSearchInput] = useState(initialSearchQuery);
   const [activePatient, setActivePatient] = useState<Patient | null>(() => {
@@ -506,6 +510,32 @@ export const PatientPortal: React.FC<PatientPortalProps> = ({
             </form>
 
             <div className="mt-8 pt-5 border-t border-slate-100 text-center">
+              {onOpenSurveyPortal && (
+                <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-purple-700 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <Star className="w-5 h-5 fill-amber-300 text-amber-300" />
+                    </div>
+                    <div>
+                      <p className="font-display font-black text-xs md:text-sm text-slate-900">
+                        Survei Kepuasan & Kotak Suara Pasien
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Bagikan pengalaman, kritik, atau saran Anda selama dirawat di ruangan ini.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onOpenSurveyPortal}
+                    className="px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-black text-xs shrink-0 shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
+                  >
+                    <MessageSquareHeart className="w-3.5 h-3.5" />
+                    <span>Beri Penilaian & Saran</span>
+                  </button>
+                </div>
+              )}
+
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-600 flex items-start gap-2.5 text-left">
                 <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>

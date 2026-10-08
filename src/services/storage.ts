@@ -1,9 +1,10 @@
-import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings } from '../types';
+import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback } from '../types';
 import {
   DEFAULT_NURSES,
   DEFAULT_PATIENTS,
   DEFAULT_EDUCATION_ARTICLES,
   DEFAULT_SETTINGS,
+  DEFAULT_SURVEYS,
   generateInitialMonthlySchedules,
 } from './defaultData';
 import { determineActiveShift } from '../utils/witaTime';
@@ -19,6 +20,7 @@ export const STORAGE_KEYS = {
   EDUCATION: 'careshift_education_v2',
   SETTINGS: 'careshift_settings_v2',
   IS_ADMIN: 'careshift_is_admin_v2',
+  SURVEYS: 'careshift_surveys_v2',
 };
 
 export class StorageService {
@@ -358,5 +360,35 @@ RM-2026-203,Sdr. Dimas Prasetyo,Kamar 306 - Bed C,Fraktur Clavicula Dextra,dr. S
     }
 
     return { patients: newPatients, count: newPatients.length };
+  }
+
+  // --- SURVEYS & FEEDBACK ---
+  static getSurveys(): SurveyFeedback[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SURVEYS);
+      if (data) return JSON.parse(data);
+    } catch {
+      // Fallback
+    }
+    this.saveSurveys(DEFAULT_SURVEYS);
+    return DEFAULT_SURVEYS;
+  }
+
+  static saveSurveys(surveys: SurveyFeedback[]): void {
+    this.safeSetItem(STORAGE_KEYS.SURVEYS, JSON.stringify(surveys));
+  }
+
+  static addSurvey(survey: SurveyFeedback): SurveyFeedback[] {
+    const list = this.getSurveys();
+    const updated = [survey, ...list];
+    this.saveSurveys(updated);
+    return updated;
+  }
+
+  static deleteSurvey(id: string): SurveyFeedback[] {
+    const list = this.getSurveys();
+    const updated = list.filter((s) => s.id !== id);
+    this.saveSurveys(updated);
+    return updated;
   }
 }

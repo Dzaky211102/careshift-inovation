@@ -10,7 +10,7 @@ import {
   getDocs,
   writeBatch,
 } from 'firebase/firestore';
-import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings } from '../types';
+import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback } from '../types';
 
 export const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'swift-totem-0cbh2',
@@ -51,7 +51,8 @@ export class FirebaseSyncService {
     defaultSchedules: ShiftDuty[],
     defaultPatients: Patient[],
     defaultSettings: AppSettings,
-    defaultEducation: EducationArticle[]
+    defaultEducation: EducationArticle[],
+    defaultSurveys: SurveyFeedback[] = []
   ) {
     if (this.isBootstrapped) return;
     this.isBootstrapped = true;
@@ -132,6 +133,18 @@ export class FirebaseSyncService {
         });
         await batch.commit();
       }
+
+      // 6. Surveys
+      const surSnap = await getDocs(collection(db, 'surveys'));
+      if (surSnap.empty && defaultSurveys.length > 0) {
+        console.log('[Firebase] Bootstrapping initial surveys...');
+        const batch = writeBatch(db);
+        defaultSurveys.forEach((sur) => {
+          const sRef = doc(db, 'surveys', sur.id);
+          batch.set(sRef, cleanForFirestore(sur));
+        });
+        await batch.commit();
+      }
     } catch (err) {
       console.warn('[Firebase] Bootstrapping notice:', err);
     }
@@ -205,6 +218,12 @@ export class FirebaseSyncService {
                     },
                   ],
             selectedDashboardImageId: raw.selectedDashboardImageId || 'dash-img-1',
+            satisfactionSurveyGoogleFormUrl:
+              raw.satisfactionSurveyGoogleFormUrl !== undefined
+                ? raw.satisfactionSurveyGoogleFormUrl
+                : 'https://docs.google.com/forms/d/e/1FAIpQLSc_ExampleGoogleFormSurvey/viewform',
+            satisfactionSurveyEnabled:
+              raw.satisfactionSurveyEnabled !== undefined ? raw.satisfactionSurveyEnabled : true,
             googleSheets: raw.googleSheets || {
               enabled: false,
               webAppUrl: '',
@@ -353,8 +372,43 @@ export class FirebaseSyncService {
       const eRef = doc(db, 'education', articleId);
       await deleteDoc(eRef);
     } catch (err) {
-      console.error('[Firebase] Error deleting education online:', err);
-      throw err;
+      console.warn('[Firebase] Error deleting education online:', err);
+    }
+  }
+
+  // --- Surveys & Feedback ---
+  static subscribeSurveys(onUpdate: (surveys: SurveyFeedback[]) => void) {
+    const sCol = collection(db, 'surveys');
+    return onSnapshot(
+      sCol,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list: SurveyFeedback[] = [];
+          snapshot.forEach((doc) => list.push(doc.data() as SurveyFeedback));
+          // Sort newest first
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          onUpdate(list);
+        }
+      },
+      (err) => console.warn('[Firebase] Surveys listener notice:', err)
+    );
+  }
+
+  static async saveSurveyOnline(survey: SurveyFeedback): Promise<void> {
+    try {
+      const sRef = doc(db, 'surveys', survey.id);
+      await setDoc(sRef, cleanForFirestore(survey));
+    } catch (err) {
+      console.warn('[Firebase] Notice saving survey online:', err);
+    }
+  }
+
+  static async deleteSurveyOnline(surveyId: string): Promise<void> {
+    try {
+      const sRef = doc(db, 'surveys', surveyId);
+      await deleteDoc(sRef);
+    } catch (err) {
+      console.warn('[Firebase] Notice deleting survey online:', err);
     }
   }
 }

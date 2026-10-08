@@ -1,4 +1,4 @@
-import { Nurse, Patient, EducationArticle, AppSettings, ShiftDuty, DashboardImage } from '../types';
+import { Nurse, Patient, EducationArticle, AppSettings, ShiftDuty, DashboardImage, SurveyFeedback } from '../types';
 import { DEFAULT_SHIFT_CONFIGS, getWitaDateString } from '../utils/witaTime';
 
 export const DEFAULT_NURSES: Nurse[] = [
@@ -473,6 +473,53 @@ export const DEFAULT_DASHBOARD_IMAGES: DashboardImage[] = [
   },
 ];
 
+export const DEFAULT_SURVEYS: SurveyFeedback[] = [
+  {
+    id: 'survey-1',
+    name: 'Bpk. Hendra W.',
+    roleType: 'pasien',
+    roomNumber: 'Kamar 302 - Bed A',
+    rating: 5,
+    category: 'pelayanan_perawat',
+    comments: 'Pelayanan perawat ruang rawat sangat ramah, sabar membimbing saya latihan miring dan jalan, serta selalu sigap saat bel panggilan ditekan.',
+    createdAt: '2026-10-06 14:15 WITA',
+    status: 'reviewed',
+  },
+  {
+    id: 'survey-2',
+    name: 'Ibu S. Rahayu',
+    roleType: 'keluarga',
+    roomNumber: 'Kamar 305 - Bed B',
+    rating: 5,
+    category: 'komunikasi',
+    comments: 'Penjelasan dokter dan perawat jaga sangat jelas, informatif, dan menenangkan hati keluarga yang menunggu operasi.',
+    createdAt: '2026-10-06 19:40 WITA',
+    status: 'reviewed',
+  },
+  {
+    id: 'survey-3',
+    name: 'R. Firmansyah',
+    roleType: 'pasien',
+    roomNumber: 'Kamar 308 - Bed A',
+    rating: 4,
+    category: 'kebersihan',
+    comments: 'Suster dan mantri sangat cekatan dan bersahabat. Kebersihan kamar mandi terjaga dengan baik, mohon pendingin AC kamar 308 diperiksa berkala.',
+    createdAt: '2026-10-07 10:20 WITA',
+    status: 'reviewed',
+  },
+  {
+    id: 'survey-4',
+    name: 'Ny. D. Lestari',
+    roleType: 'keluarga',
+    roomNumber: 'Kamar 310 - Bed C',
+    rating: 5,
+    category: 'pelayanan_perawat',
+    comments: 'Edukasi cara merawat perban di rumah dan jadwal kontrol sangat membantu dan mudah dipahami. Terima kasih banyak tim CareShift Teratai!',
+    createdAt: '2026-10-07 16:05 WITA',
+    status: 'reviewed',
+  },
+];
+
 export const DEFAULT_SETTINGS: AppSettings = {
   hospitalName: 'RS Citra Sehat Care',
   wardName: 'Ruang Rawat Inap Teratai - Lantai 3',
@@ -496,6 +543,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   shiftConfigs: DEFAULT_SHIFT_CONFIGS,
   dashboardImages: DEFAULT_DASHBOARD_IMAGES,
   selectedDashboardImageId: 'dash-img-1',
+  satisfactionSurveyGoogleFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSc_ExampleGoogleFormSurvey/viewform',
+  satisfactionSurveyEnabled: true,
   googleSheets: {
     enabled: false,
     webAppUrl: '',
