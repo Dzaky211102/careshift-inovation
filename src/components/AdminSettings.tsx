@@ -108,6 +108,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [surveySearch, setSurveySearch] = useState('');
   const [deletingSurveyId, setDeletingSurveyId] = useState<string | null>(null);
   const [deletingPatientId, setDeletingPatientId] = useState<string | null>(null);
+  const [confirmClearDefaultSurveys, setConfirmClearDefaultSurveys] = useState(false);
+  const [confirmClearAllSurveys, setConfirmClearAllSurveys] = useState(false);
 
   // PIN Login State
   const [pinInput, setPinInput] = useState('');
@@ -2617,27 +2619,77 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   surveys.some((s) =>
                     ['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(s.id)
                   ) && (
-                    <button
-                      type="button"
-                      onClick={onClearDefaultSurveys}
-                      className="px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
-                      title="Hapus 4 data masukan contoh bawaan sistem"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Hapus Masukan Bawaan (Contoh)</span>
-                    </button>
+                    confirmClearDefaultSurveys ? (
+                      <div className="flex items-center gap-1.5 p-1 bg-amber-50 rounded-2xl border border-amber-300 animate-fadeIn">
+                        <span className="text-[11px] font-black text-amber-900 px-1">
+                          Hapus 4 contoh di semua device?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClearDefaultSurveys();
+                            setConfirmClearDefaultSurveys(false);
+                          }}
+                          className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl shadow-xs"
+                        >
+                          Ya, Hapus
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClearDefaultSurveys(false)}
+                          className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClearDefaultSurveys(true)}
+                        className="px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+                        title="Hapus 4 data masukan contoh bawaan sistem di semua perangkat"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus Masukan Bawaan (Contoh)</span>
+                      </button>
+                    )
                   )}
 
                 {/* Kosongkan Semua button */}
                 {onClearAllSurveys && surveys.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={onClearAllSurveys}
-                    className="px-3 py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1.5 border border-rose-200 transition-colors"
-                    title="Kosongkan seluruh data ulasan"
-                  >
-                    <span>Kosongkan Semua ({surveys.length})</span>
-                  </button>
+                  confirmClearAllSurveys ? (
+                    <div className="flex items-center gap-1.5 p-1 bg-rose-50 rounded-2xl border border-rose-300 animate-fadeIn">
+                      <span className="text-[11px] font-black text-rose-900 px-1">
+                        Kosongkan {surveys.length} ulasan di semua device?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClearAllSurveys();
+                          setConfirmClearAllSurveys(false);
+                        }}
+                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl shadow-xs"
+                      >
+                        Ya, Kosongkan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClearAllSurveys(false)}
+                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClearAllSurveys(true)}
+                      className="px-3 py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1.5 border border-rose-200 transition-colors"
+                      title="Kosongkan seluruh data ulasan di semua perangkat"
+                    >
+                      <span>Kosongkan Semua ({surveys.length})</span>
+                    </button>
+                  )
                 )}
 
                 <button

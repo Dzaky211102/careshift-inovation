@@ -22,9 +22,12 @@ import {
   ShieldCheck,
   Save,
   X,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
 import { SurveyFeedback, AppSettings } from '../types';
 import { getWitaDateString, getWitaTimeString } from '../utils/witaTime';
+import { SurveyTrendChart } from './SurveyTrendChart';
 
 interface SurveyFeedbackPortalProps {
   surveys: SurveyFeedback[];
@@ -67,8 +70,9 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedFilterStar, setSelectedFilterStar] = useState<number | 'all'>('all');
-  const [activeViewTab, setActiveViewTab] = useState<'form' | 'reviews'>('form');
+  const [activeViewTab, setActiveViewTab] = useState<'form' | 'reviews' | 'trends'>('form');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmClearDefault, setConfirmClearDefault] = useState(false);
 
   // Admin-Only Inline Link Editor
   const [isEditingInlineLink, setIsEditingInlineLink] = useState(false);
@@ -444,6 +448,17 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
             <Star className="w-4 h-4" />
             <span>Lihat Ulasan & Masukan ({surveys.length})</span>
           </button>
+          <button
+            onClick={() => setActiveViewTab('trends')}
+            className={`px-4 py-2 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-2 ${
+              activeViewTab === 'trends'
+                ? 'bg-purple-700 text-white shadow-md'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-purple-50'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Tren Rating (30 Hari)</span>
+          </button>
         </div>
 
         {isAdmin && onOpenAdminSettings && (
@@ -752,11 +767,19 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
             </div>
           </div>
         </div>
+      ) : activeViewTab === 'trends' ? (
+        /* 30-DAY RECHARTS TREND CHART VIEW */
+        <SurveyTrendChart
+          surveys={surveys}
+          onOpenSurveyForm={() => setActiveViewTab('form')}
+          wardName={settings.wardName}
+          hospitalName={settings.hospitalName}
+        />
       ) : (
         /* REVIEWS LIST VIEW */
         <div className="space-y-5 animate-fadeIn">
           {/* Star Filter Pills & Action */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               <span className="text-xs font-black text-slate-500 mr-1 flex items-center gap-1 shrink-0">
                 <Filter className="w-3.5 h-3.5" />
@@ -793,21 +816,57 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
               ))}
             </div>
 
-            {/* Quick Button to Delete Default/Sample Reviews */}
-            {onClearDefaultSurveys &&
-              surveys.some((s) =>
-                ['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(s.id)
-              ) && (
-                <button
-                  type="button"
-                  onClick={onClearDefaultSurveys}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0 self-start sm:self-auto"
-                  title="Hapus semua data masukan contoh bawaan sistem"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Hapus Masukan Bawaan (Contoh)</span>
-                </button>
-              )}
+            <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+              {/* Quick Jump to Trends Chart */}
+              <button
+                type="button"
+                onClick={() => setActiveViewTab('trends')}
+                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs flex items-center gap-1.5 border border-purple-200 transition-all shrink-0"
+                title="Buka visualisasi grafik tren bintang 30 hari"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Lihat Tren 30 Hari</span>
+              </button>
+
+              {/* Quick Button to Delete Default/Sample Reviews */}
+              {onClearDefaultSurveys &&
+                surveys.some((s) =>
+                  ['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(s.id)
+                ) && (
+                  confirmClearDefault ? (
+                    <div className="flex items-center gap-1.5 p-1 bg-amber-50 rounded-xl border border-amber-300 animate-fadeIn shrink-0">
+                      <span className="text-[10px] font-black text-amber-800">Hapus 4 contoh bawaan?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClearDefaultSurveys();
+                          setConfirmClearDefault(false);
+                        }}
+                        className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-black rounded-lg shadow-xs"
+                      >
+                        Ya, Hapus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClearDefault(false)}
+                        className="px-1.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClearDefault(true)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+                      title="Hapus semua 4 data masukan contoh bawaan sistem di semua perangkat"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hapus Masukan Bawaan (Contoh)</span>
+                    </button>
+                  )
+                )}
+            </div>
           </div>
 
           {filteredSurveys.length === 0 ? (

@@ -8,9 +8,17 @@ import {
   deleteDoc,
   onSnapshot,
   getDocs,
+  getDoc,
   writeBatch,
+  arrayUnion,
 } from 'firebase/firestore';
 import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback } from '../types';
+
+export interface SurveysMeta {
+  bootstrapped?: boolean;
+  defaultSurveysCleared?: boolean;
+  deletedSurveyIds?: string[];
+}
 
 export const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'swift-totem-0cbh2',
@@ -134,10 +142,23 @@ export class FirebaseSyncService {
         await batch.commit();
       }
 
-      // 6. Surveys: only bootstrap once on initial setup if not previously initialized
-      const hasInitializedSurveys = localStorage.getItem('careshift_surveys_initialized_v2');
-      if (!hasInitializedSurveys) {
-        localStorage.setItem('careshift_surveys_initialized_v2', 'true');
+      // 6. Surveys: check cloud metadata first so no device resurrects deleted surveys
+      const metaRef = doc(db, 'settings', 'surveys_meta');
+      let isCloudBootstrapped = false;
+      let isCloudMetaCleared = false;
+      try {
+        const metaSnap = await getDoc(metaRef);
+        if (metaSnap.exists()) {
+          const m = metaSnap.data() as SurveysMeta;
+          isCloudBootstrapped = Boolean(m.bootstrapped);
+          isCloudMetaCleared = Boolean(m.defaultSurveysCleared);
+        }
+      } catch (mErr) {
+        console.warn('[Firebase] Survey meta check notice:', mErr);
+      }
+
+      // If cloud already recorded bootstrap or that default surveys were cleared, NEVER re-seed!
+      if (!isCloudBootstrapped && !isCloudMetaCleared) {
         const surSnap = await getDocs(collection(db, 'surveys'));
         if (surSnap.empty && defaultSurveys.length > 0) {
           console.log('[Firebase] Bootstrapping initial surveys...');
@@ -146,7 +167,19 @@ export class FirebaseSyncService {
             const sRef = doc(db, 'surveys', sur.id);
             batch.set(sRef, cleanForFirestore(sur));
           });
+          batch.set(metaRef, {
+            bootstrapped: true,
+            defaultSurveysCleared: false,
+            deletedSurveyIds: [],
+          });
           await batch.commit();
+        } else {
+          // Collection already had docs or is intentionally empty; mark metadata as bootstrapped
+          await setDoc(
+            metaRef,
+            { bootstrapped: true, defaultSurveysCleared: false, deletedSurveyIds: [] },
+            { merge: true }
+          );
         }
       }
     } catch (err) {
@@ -388,7 +421,12 @@ export class FirebaseSyncService {
       (snapshot) => {
         if (!snapshot.empty) {
           const list: SurveyFeedback[] = [];
-          snapshot.forEach((doc) => list.push(doc.data() as SurveyFeedback));
+          snapshot.forEach((doc) => {
+            const data = doc.data() as SurveyFeedback;
+            if (data && data.id) {
+              list.push(data);
+            }
+          });
           // Sort newest first
           list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           onUpdate(list);
@@ -397,6 +435,19 @@ export class FirebaseSyncService {
         }
       },
       (err) => console.warn('[Firebase] Surveys listener notice:', err)
+    );
+  }
+
+  static subscribeSurveyMeta(onUpdate: (meta: SurveysMeta) => void) {
+    const metaRef = doc(db, 'settings', 'surveys_meta');
+    return onSnapshot(
+      metaRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          onUpdate(snapshot.data() as SurveysMeta);
+        }
+      },
+      (err) => console.warn('[Firebase] Survey meta listener notice:', err)
     );
   }
 
@@ -413,8 +464,62 @@ export class FirebaseSyncService {
     try {
       const sRef = doc(db, 'surveys', surveyId);
       await deleteDoc(sRef);
+      // Register in cloud tombstone so no other device resurrects it
+      const metaRef = doc(db, 'settings', 'surveys_meta');
+      await setDoc(
+        metaRef,
+        {
+          bootstrapped: true,
+          deletedSurveyIds: arrayUnion(surveyId),
+        },
+        { merge: true }
+      );
     } catch (err) {
       console.warn('[Firebase] Notice deleting survey online:', err);
+    }
+  }
+
+  static async clearDefaultSurveysOnline(defaultIds: string[]): Promise<void> {
+    try {
+      const batch = writeBatch(db);
+      defaultIds.forEach((id) => {
+        batch.delete(doc(db, 'surveys', id));
+      });
+      const metaRef = doc(db, 'settings', 'surveys_meta');
+      batch.set(
+        metaRef,
+        {
+          bootstrapped: true,
+          defaultSurveysCleared: true,
+          deletedSurveyIds: arrayUnion(...defaultIds),
+        },
+        { merge: true }
+      );
+      await batch.commit();
+    } catch (err) {
+      console.warn('[Firebase] Notice clearing default surveys online:', err);
+    }
+  }
+
+  static async clearAllSurveysOnline(surveyIds: string[]): Promise<void> {
+    try {
+      const batch = writeBatch(db);
+      surveyIds.forEach((id) => {
+        batch.delete(doc(db, 'surveys', id));
+      });
+      const metaRef = doc(db, 'settings', 'surveys_meta');
+      batch.set(
+        metaRef,
+        {
+          bootstrapped: true,
+          defaultSurveysCleared: true,
+          deletedSurveyIds: arrayUnion(...surveyIds),
+        },
+        { merge: true }
+      );
+      await batch.commit();
+    } catch (err) {
+      console.warn('[Firebase] Notice clearing all surveys online:', err);
     }
   }
 }

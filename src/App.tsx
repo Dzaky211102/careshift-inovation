@@ -97,8 +97,37 @@ export default function App() {
     });
 
     const unsubSurveys = FirebaseSyncService.subscribeSurveys((remoteSurveys) => {
-      setSurveys(remoteSurveys);
-      StorageService.saveSurveys(remoteSurveys);
+      const deletedIds = StorageService.getDeletedSurveyIds();
+      const isDefaultCleared = StorageService.isDefaultSurveysCleared();
+      const filtered = remoteSurveys.filter(
+        (s) =>
+          !deletedIds.has(s.id) &&
+          (!isDefaultCleared || !['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(s.id))
+      );
+      setSurveys(filtered);
+      StorageService.saveSurveys(filtered);
+    });
+
+    const unsubSurveyMeta = FirebaseSyncService.subscribeSurveyMeta((meta) => {
+      if (!meta) return;
+      if (meta.defaultSurveysCleared) {
+        StorageService.setDefaultSurveysCleared(true);
+      }
+      if (meta.deletedSurveyIds && meta.deletedSurveyIds.length > 0) {
+        StorageService.addDeletedSurveyIds(meta.deletedSurveyIds);
+      }
+      // Re-prune surveys state immediately across devices
+      setSurveys((current) => {
+        const deletedSet = new Set(meta.deletedSurveyIds || []);
+        const cleared = Boolean(meta.defaultSurveysCleared);
+        const pruned = current.filter(
+          (s) =>
+            !deletedSet.has(s.id) &&
+            (!cleared || !['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(s.id))
+        );
+        StorageService.saveSurveys(pruned);
+        return pruned;
+      });
     });
 
     // Hydrate rich education articles from local IndexedDB if available
@@ -117,6 +146,7 @@ export default function App() {
       unsubSettings();
       unsubEdu();
       unsubSurveys();
+      unsubSurveyMeta();
     };
   }, []);
 
@@ -243,19 +273,16 @@ export default function App() {
 
   const handleClearDefaultSurveys = () => {
     const defaultIds = ['survey-1', 'survey-2', 'survey-3', 'survey-4'];
-    defaultIds.forEach((id) => {
-      FirebaseSyncService.deleteSurveyOnline(id);
-    });
     const updated = StorageService.clearDefaultSurveys();
     setSurveys(updated);
+    FirebaseSyncService.clearDefaultSurveysOnline(defaultIds);
   };
 
   const handleClearAllSurveys = () => {
-    surveys.forEach((s) => {
-      FirebaseSyncService.deleteSurveyOnline(s.id);
-    });
+    const allIds = surveys.map((s) => s.id);
     const updated = StorageService.clearAllSurveys();
     setSurveys(updated);
+    FirebaseSyncService.clearAllSurveysOnline(allIds);
   };
 
   const handleLogoutAdmin = () => {

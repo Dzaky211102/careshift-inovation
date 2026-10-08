@@ -21,6 +21,8 @@ export const STORAGE_KEYS = {
   SETTINGS: 'careshift_settings_v2',
   IS_ADMIN: 'careshift_is_admin_v2',
   SURVEYS: 'careshift_surveys_v2',
+  SURVEYS_DELETED_IDS: 'careshift_deleted_survey_ids_v2',
+  SURVEYS_DEFAULT_CLEARED: 'careshift_default_surveys_cleared_v2',
 };
 
 export class StorageService {
@@ -363,29 +365,113 @@ RM-2026-203,Sdr. Dimas Prasetyo,Kamar 306 - Bed C,Fraktur Clavicula Dextra,dr. S
   }
 
   // --- SURVEYS & FEEDBACK ---
-  static getSurveys(): SurveyFeedback[] {
+  static getDeletedSurveyIds(): Set<string> {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.SURVEYS);
-      if (data !== null) return JSON.parse(data);
+      const data = localStorage.getItem(STORAGE_KEYS.SURVEYS_DELETED_IDS);
+      if (data) return new Set(JSON.parse(data));
     } catch {
       // Fallback
     }
-    this.saveSurveys(DEFAULT_SURVEYS);
-    return DEFAULT_SURVEYS;
+    return new Set<string>();
+  }
+
+  static addDeletedSurveyId(id: string): void {
+    try {
+      const set = this.getDeletedSurveyIds();
+      set.add(id);
+      localStorage.setItem(
+        STORAGE_KEYS.SURVEYS_DELETED_IDS,
+        JSON.stringify(Array.from(set))
+      );
+    } catch {
+      // Ignore
+    }
+  }
+
+  static addDeletedSurveyIds(ids: string[]): void {
+    try {
+      const set = this.getDeletedSurveyIds();
+      ids.forEach((id) => set.add(id));
+      localStorage.setItem(
+        STORAGE_KEYS.SURVEYS_DELETED_IDS,
+        JSON.stringify(Array.from(set))
+      );
+    } catch {
+      // Ignore
+    }
+  }
+
+  static isDefaultSurveysCleared(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.SURVEYS_DEFAULT_CLEARED) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  static setDefaultSurveysCleared(cleared: boolean): void {
+    try {
+      if (cleared) {
+        localStorage.setItem(STORAGE_KEYS.SURVEYS_DEFAULT_CLEARED, 'true');
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.SURVEYS_DEFAULT_CLEARED);
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  static getSurveys(): SurveyFeedback[] {
+    const deletedIds = this.getDeletedSurveyIds();
+    const isDefaultCleared = this.isDefaultSurveysCleared();
+    const defaultIds = ['survey-1', 'survey-2', 'survey-3', 'survey-4'];
+
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SURVEYS);
+      if (data !== null) {
+        const parsed = JSON.parse(data) as SurveyFeedback[];
+        return parsed.filter(
+          (s) =>
+            !deletedIds.has(s.id) &&
+            (!isDefaultCleared || !defaultIds.includes(s.id))
+        );
+      }
+    } catch {
+      // Fallback
+    }
+
+    if (isDefaultCleared) {
+      this.saveSurveys([]);
+      return [];
+    }
+
+    const initial = DEFAULT_SURVEYS.filter((s) => !deletedIds.has(s.id));
+    this.saveSurveys(initial);
+    return initial;
   }
 
   static saveSurveys(surveys: SurveyFeedback[]): void {
-    this.safeSetItem(STORAGE_KEYS.SURVEYS, JSON.stringify(surveys));
+    const deletedIds = this.getDeletedSurveyIds();
+    const isDefaultCleared = this.isDefaultSurveysCleared();
+    const defaultIds = ['survey-1', 'survey-2', 'survey-3', 'survey-4'];
+
+    const filtered = surveys.filter(
+      (s) =>
+        !deletedIds.has(s.id) &&
+        (!isDefaultCleared || !defaultIds.includes(s.id))
+    );
+    this.safeSetItem(STORAGE_KEYS.SURVEYS, JSON.stringify(filtered));
   }
 
   static addSurvey(survey: SurveyFeedback): SurveyFeedback[] {
     const list = this.getSurveys();
-    const updated = [survey, ...list];
+    const updated = [survey, ...list.filter((s) => s.id !== survey.id)];
     this.saveSurveys(updated);
     return updated;
   }
 
   static deleteSurvey(id: string): SurveyFeedback[] {
+    this.addDeletedSurveyId(id);
     const list = this.getSurveys();
     const updated = list.filter((s) => s.id !== id);
     this.saveSurveys(updated);
@@ -393,14 +479,19 @@ RM-2026-203,Sdr. Dimas Prasetyo,Kamar 306 - Bed C,Fraktur Clavicula Dextra,dr. S
   }
 
   static clearDefaultSurveys(): SurveyFeedback[] {
-    const defaultIds = new Set(['survey-1', 'survey-2', 'survey-3', 'survey-4']);
+    const defaultIds = ['survey-1', 'survey-2', 'survey-3', 'survey-4'];
+    this.setDefaultSurveysCleared(true);
+    this.addDeletedSurveyIds(defaultIds);
     const list = this.getSurveys();
-    const updated = list.filter((s) => !defaultIds.has(s.id));
+    const updated = list.filter((s) => !defaultIds.includes(s.id));
     this.saveSurveys(updated);
     return updated;
   }
 
   static clearAllSurveys(): SurveyFeedback[] {
+    const list = this.getSurveys();
+    this.setDefaultSurveysCleared(true);
+    this.addDeletedSurveyIds(list.map((s) => s.id));
     this.saveSurveys([]);
     return [];
   }
