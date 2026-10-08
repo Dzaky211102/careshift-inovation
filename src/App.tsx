@@ -236,13 +236,26 @@ export default function App() {
   };
 
   const handleDeleteSurvey = (id: string) => {
-    if (!isAdmin) {
-      alert('Akses Ditolak: Hanya Admin yang dapat menghapus data ulasan.');
-      return;
-    }
     const updated = StorageService.deleteSurvey(id);
     setSurveys(updated);
     FirebaseSyncService.deleteSurveyOnline(id);
+  };
+
+  const handleClearDefaultSurveys = () => {
+    const defaultIds = ['survey-1', 'survey-2', 'survey-3', 'survey-4'];
+    defaultIds.forEach((id) => {
+      FirebaseSyncService.deleteSurveyOnline(id);
+    });
+    const updated = StorageService.clearDefaultSurveys();
+    setSurveys(updated);
+  };
+
+  const handleClearAllSurveys = () => {
+    surveys.forEach((s) => {
+      FirebaseSyncService.deleteSurveyOnline(s.id);
+    });
+    const updated = StorageService.clearAllSurveys();
+    setSurveys(updated);
   };
 
   const handleLogoutAdmin = () => {
@@ -409,7 +422,11 @@ export default function App() {
                 isAdmin={isAdmin}
                 onSubmitSurvey={handleCreateSurvey}
                 onDeleteSurvey={handleDeleteSurvey}
+                onClearDefaultSurveys={handleClearDefaultSurveys}
+                onClearAllSurveys={handleClearAllSurveys}
                 onOpenAdminSettings={() => setActiveTab('settings')}
+                onOpenLoginModal={() => setIsLoginModalOpen(true)}
+                onUpdateSettings={handleUpdateSettings}
               />
             )}
 
@@ -431,6 +448,8 @@ export default function App() {
                 onUpdateEducation={handleUpdateEducation}
                 onUpdateSettings={handleUpdateSettings}
                 onDeleteSurvey={handleDeleteSurvey}
+                onClearDefaultSurveys={handleClearDefaultSurveys}
+                onClearAllSurveys={handleClearAllSurveys}
               />
             )}
           </div>

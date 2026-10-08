@@ -18,6 +18,10 @@ import {
   Settings,
   HelpCircle,
   FileSpreadsheet,
+  Lock,
+  ShieldCheck,
+  Save,
+  X,
 } from 'lucide-react';
 import { SurveyFeedback, AppSettings } from '../types';
 import { getWitaDateString, getWitaTimeString } from '../utils/witaTime';
@@ -28,7 +32,11 @@ interface SurveyFeedbackPortalProps {
   isAdmin: boolean;
   onSubmitSurvey: (survey: SurveyFeedback) => void;
   onDeleteSurvey: (id: string) => void;
+  onClearDefaultSurveys?: () => void;
+  onClearAllSurveys?: () => void;
   onOpenAdminSettings?: () => void;
+  onOpenLoginModal?: () => void;
+  onUpdateSettings?: (settings: AppSettings) => void;
 }
 
 export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
@@ -37,7 +45,11 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
   isAdmin,
   onSubmitSurvey,
   onDeleteSurvey,
+  onClearDefaultSurveys,
+  onClearAllSurveys,
   onOpenAdminSettings,
+  onOpenLoginModal,
+  onUpdateSettings,
 }) => {
   // Form State
   const [name, setName] = useState('');
@@ -56,6 +68,16 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedFilterStar, setSelectedFilterStar] = useState<number | 'all'>('all');
   const [activeViewTab, setActiveViewTab] = useState<'form' | 'reviews'>('form');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Admin-Only Inline Link Editor
+  const [isEditingInlineLink, setIsEditingInlineLink] = useState(false);
+  const [inlineLinkInput, setInlineLinkInput] = useState(settings.satisfactionSurveyGoogleFormUrl || '');
+  const [inlineSaveSuccess, setInlineSaveSuccess] = useState(false);
+
+  React.useEffect(() => {
+    setInlineLinkInput(settings.satisfactionSurveyGoogleFormUrl || '');
+  }, [settings.satisfactionSurveyGoogleFormUrl]);
 
   const ratingDescriptions: Record<number, { text: string; color: string; desc: string }> = {
     1: {
@@ -210,8 +232,8 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
       </div>
 
       {/* 2. GOOGLE FORM INTEGRATION CARD */}
-      {isGoogleFormEnabled && (
-        <div className="clay-card-flat bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/50 p-5 md:p-6 border-2 border-purple-200/80 shadow-md rounded-3xl">
+      {isGoogleFormEnabled ? (
+        <div className="clay-card-flat bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/50 p-5 md:p-6 border-2 border-purple-200/80 shadow-md rounded-3xl space-y-4">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shrink-0">
@@ -225,6 +247,17 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200">
                     Tersambung
                   </span>
+                  {isAdmin ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                      <span>Admin: Hak Akses Ubah Link</span>
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-slate-400" />
+                      <span>Dikelola Admin</span>
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs md:text-sm text-slate-600 font-medium mt-1">
                   Anda juga dapat mengisi kuesioner evaluasi akreditasi dan kepuasan pelayanan langsung melalui formulir Google Form resmi ruangan kami.
@@ -262,20 +295,128 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
                 <span>Buka Google Form</span>
               </a>
 
-              {isAdmin && onOpenAdminSettings && (
+              {/* ADMIN ONLY CONTROLS */}
+              {isAdmin && (
                 <button
                   type="button"
-                  onClick={onOpenAdminSettings}
-                  className="px-3 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs flex items-center gap-1.5 transition-colors"
-                  title="Ganti tautan Google Form di Pengaturan Admin"
+                  onClick={() => setIsEditingInlineLink((prev) => !prev)}
+                  className="px-3 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-black text-xs flex items-center gap-1.5 transition-colors border border-purple-200"
+                  title="Ganti tautan Google Form (Hanya Admin)"
                 >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>Ubah Link</span>
+                  <Settings className="w-3.5 h-3.5 text-purple-700" />
+                  <span>{isEditingInlineLink ? 'Tutup Edit' : 'Ubah Link (Admin)'}</span>
                 </button>
               )}
             </div>
           </div>
+
+          {/* Inline Admin Editor when opened */}
+          {isAdmin && isEditingInlineLink && (
+            <div className="pt-4 mt-2 border-t border-purple-200/80 animate-fadeIn space-y-3 bg-purple-50/60 p-4 rounded-2xl border border-purple-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-purple-700" />
+                  <span>Pengaturan Tautan Google Form (Hanya Admin)</span>
+                </span>
+                {onOpenAdminSettings && (
+                  <button
+                    type="button"
+                    onClick={onOpenAdminSettings}
+                    className="text-xs font-bold text-purple-700 hover:text-purple-900 underline flex items-center gap-1"
+                  >
+                    <span>Buka Panel Pengaturan Lengkap</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="url"
+                  value={inlineLinkInput}
+                  onChange={(e) => setInlineLinkInput(e.target.value)}
+                  placeholder="https://docs.google.com/forms/d/e/.../viewform"
+                  className="flex-1 px-3.5 py-2.5 bg-white border-2 border-purple-300 focus:border-purple-600 rounded-xl text-xs font-mono font-medium outline-none text-slate-900"
+                />
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isAdmin || !onUpdateSettings) return;
+                      const updated = {
+                        ...settings,
+                        satisfactionSurveyGoogleFormUrl: inlineLinkInput.trim(),
+                        satisfactionSurveyEnabled: true,
+                      };
+                      onUpdateSettings(updated);
+                      setInlineSaveSuccess(true);
+                      setTimeout(() => {
+                        setInlineSaveSuccess(false);
+                        setIsEditingInlineLink(false);
+                      }, 1800);
+                    }}
+                    className="px-4 py-2.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
+                  >
+                    {inlineSaveSuccess ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-300" />
+                        <span>Tersimpan!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Simpan Link</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInlineLinkInput(settings.satisfactionSurveyGoogleFormUrl || '');
+                      setIsEditingInlineLink(false);
+                    }}
+                    className="px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Tip: Salin tautan pendek dari menu 'Kirim' di Google Forms dan tempelkan di sini. Pasien tidak dapat mengubah link ini.
+              </p>
+            </div>
+          )}
         </div>
+      ) : (
+        /* When disabled or empty, if Admin is logged in, show helper to add link */
+        isAdmin && (
+          <div className="clay-card-flat bg-purple-50/80 p-5 border border-purple-200 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-700 text-white flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-display font-black text-sm text-purple-950">
+                  Tautan Google Form Belum Diaktifkan (Panel Admin)
+                </p>
+                <p className="text-xs text-purple-700 font-medium">
+                  Hanya Admin yang dapat menambahkan tautan kuesioner Google Form untuk ruangan ini.
+                </p>
+              </div>
+            </div>
+            {onOpenAdminSettings && (
+              <button
+                type="button"
+                onClick={onOpenAdminSettings}
+                className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-black shadow-md transition-all shrink-0"
+              >
+                Atur Link di Pengaturan Admin
+              </button>
+            )}
+          </div>
+        )
       )}
 
       {/* 3. NAVIGATION VIEW TABS */}
@@ -614,41 +755,59 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
       ) : (
         /* REVIEWS LIST VIEW */
         <div className="space-y-5 animate-fadeIn">
-          {/* Star Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-black text-slate-500 mr-1 flex items-center gap-1 shrink-0">
-              <Filter className="w-3.5 h-3.5" />
-              <span>Filter:</span>
-            </span>
+          {/* Star Filter Pills & Action */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="text-xs font-black text-slate-500 mr-1 flex items-center gap-1 shrink-0">
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filter:</span>
+              </span>
 
-            <button
-              onClick={() => setSelectedFilterStar('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-                selectedFilterStar === 'all'
-                  ? 'bg-purple-700 text-white shadow-xs'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
-              }`}
-            >
-              Semua ({surveys.length})
-            </button>
-
-            {[5, 4, 3, 2, 1].map((star) => (
               <button
-                key={star}
-                onClick={() => setSelectedFilterStar(star)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0 ${
-                  selectedFilterStar === star
-                    ? 'bg-amber-500 text-white shadow-xs'
+                onClick={() => setSelectedFilterStar('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 ${
+                  selectedFilterStar === 'all'
+                    ? 'bg-purple-700 text-white shadow-xs'
                     : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
                 }`}
               >
-                <span>{star}</span>
-                <Star className="w-3.5 h-3.5 fill-current" />
-                <span className="text-[10px] opacity-80">
-                  ({starCounts[star as keyof typeof starCounts]})
-                </span>
+                Semua ({surveys.length})
               </button>
-            ))}
+
+              {[5, 4, 3, 2, 1].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setSelectedFilterStar(star)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0 ${
+                    selectedFilterStar === star
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  <span>{star}</span>
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span className="text-[10px] opacity-80">
+                    ({starCounts[star as keyof typeof starCounts]})
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Button to Delete Default/Sample Reviews */}
+            {onClearDefaultSurveys &&
+              surveys.some((s) =>
+                ['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(s.id)
+              ) && (
+                <button
+                  type="button"
+                  onClick={onClearDefaultSurveys}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0 self-start sm:self-auto"
+                  title="Hapus semua data masukan contoh bawaan sistem"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Masukan Bawaan (Contoh)</span>
+                </button>
+              )}
           </div>
 
           {filteredSurveys.length === 0 ? (
@@ -669,81 +828,110 @@ export const SurveyFeedbackPortal: React.FC<SurveyFeedbackPortalProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredSurveys.map((item) => (
-                <div
-                  key={item.id}
-                  className="clay-card-flat bg-white p-5 rounded-3xl border border-purple-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow relative"
-                >
-                  <div>
-                    {/* Header: Name, Role, Stars */}
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-display font-black text-sm text-slate-900 truncate">
-                            {item.name}
-                          </h4>
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800">
-                            {item.roleType}
-                          </span>
+              {filteredSurveys.map((item) => {
+                const isDefault = ['survey-1', 'survey-2', 'survey-3', 'survey-4'].includes(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className="clay-card-flat bg-white p-5 rounded-3xl border border-purple-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow relative"
+                  >
+                    <div>
+                      {/* Header: Name, Role, Stars */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-display font-black text-sm text-slate-900 truncate">
+                              {item.name}
+                            </h4>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800">
+                              {item.roleType}
+                            </span>
+                            {isDefault && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                                Contoh Bawaan
+                              </span>
+                            )}
+                          </div>
+                          {item.roomNumber && (
+                            <p className="text-[11px] font-semibold text-slate-500 mt-0.5 flex items-center gap-1">
+                              <Bed className="w-3 h-3 text-slate-400" />
+                              <span>{item.roomNumber}</span>
+                            </p>
+                          )}
                         </div>
-                        {item.roomNumber && (
-                          <p className="text-[11px] font-semibold text-slate-500 mt-0.5 flex items-center gap-1">
-                            <Bed className="w-3 h-3 text-slate-400" />
-                            <span>{item.roomNumber}</span>
-                          </p>
-                        )}
+
+                        {/* Stars */}
+                        <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-xl border border-amber-200/60 shrink-0">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
+                                s <= item.rating
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Stars */}
-                      <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-xl border border-amber-200/60 shrink-0">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star
-                            key={s}
-                            className={`w-3.5 h-3.5 ${
-                              s <= item.rating
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-slate-200'
-                            }`}
-                          />
-                        ))}
+                      {/* Category tag */}
+                      <div className="mb-2.5">
+                        <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
+                          {getCategoryLabel(item.category)}
+                        </span>
                       </div>
+
+                      {/* Comments */}
+                      <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-medium bg-slate-50/60 p-3 rounded-2xl border border-slate-100">
+                        "{item.comments}"
+                      </p>
                     </div>
 
-                    {/* Category tag */}
-                    <div className="mb-2.5">
-                      <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
-                        {getCategoryLabel(item.category)}
-                      </span>
+                    {/* Footer: Date & Admin / Default Delete */}
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                      <span>{item.createdAt}</span>
+
+                      {(isAdmin || isDefault) && (
+                        <div className="flex items-center">
+                          {deletingId === item.id ? (
+                            <div className="flex items-center gap-1.5 p-1 bg-rose-50 rounded-xl border border-rose-200 animate-fadeIn">
+                              <span className="text-[10px] font-black text-rose-700">Yakin?</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onDeleteSurvey(item.id);
+                                  setDeletingId(null);
+                                }}
+                                className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black rounded-lg shadow-xs"
+                              >
+                                Ya, Hapus
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingId(null)}
+                                className="px-1.5 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setDeletingId(item.id)}
+                              className="text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 hover:underline text-xs"
+                              title={isDefault ? 'Hapus masukan contoh bawaan ini' : 'Hapus masukan ini'}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{isDefault ? 'Hapus Masukan Bawaan' : 'Hapus'}</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    {/* Comments */}
-                    <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-medium bg-slate-50/60 p-3 rounded-2xl border border-slate-100">
-                      "{item.comments}"
-                    </p>
                   </div>
-
-                  {/* Footer: Date & Admin Delete */}
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                    <span>{item.createdAt}</span>
-
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`Hapus ulasan dari "${item.name}"?`)) {
-                            onDeleteSurvey(item.id);
-                          }
-                        }}
-                        className="text-rose-600 hover:text-rose-800 font-bold flex items-center gap-1 hover:underline"
-                        title="Hapus masukan ini"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Hapus</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

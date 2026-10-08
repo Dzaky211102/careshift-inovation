@@ -134,16 +134,20 @@ export class FirebaseSyncService {
         await batch.commit();
       }
 
-      // 6. Surveys
-      const surSnap = await getDocs(collection(db, 'surveys'));
-      if (surSnap.empty && defaultSurveys.length > 0) {
-        console.log('[Firebase] Bootstrapping initial surveys...');
-        const batch = writeBatch(db);
-        defaultSurveys.forEach((sur) => {
-          const sRef = doc(db, 'surveys', sur.id);
-          batch.set(sRef, cleanForFirestore(sur));
-        });
-        await batch.commit();
+      // 6. Surveys: only bootstrap once on initial setup if not previously initialized
+      const hasInitializedSurveys = localStorage.getItem('careshift_surveys_initialized_v2');
+      if (!hasInitializedSurveys) {
+        localStorage.setItem('careshift_surveys_initialized_v2', 'true');
+        const surSnap = await getDocs(collection(db, 'surveys'));
+        if (surSnap.empty && defaultSurveys.length > 0) {
+          console.log('[Firebase] Bootstrapping initial surveys...');
+          const batch = writeBatch(db);
+          defaultSurveys.forEach((sur) => {
+            const sRef = doc(db, 'surveys', sur.id);
+            batch.set(sRef, cleanForFirestore(sur));
+          });
+          await batch.commit();
+        }
       }
     } catch (err) {
       console.warn('[Firebase] Bootstrapping notice:', err);
@@ -388,6 +392,8 @@ export class FirebaseSyncService {
           // Sort newest first
           list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           onUpdate(list);
+        } else {
+          onUpdate([]);
         }
       },
       (err) => console.warn('[Firebase] Surveys listener notice:', err)

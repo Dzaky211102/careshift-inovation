@@ -366,7 +366,7 @@ RM-2026-203,Sdr. Dimas Prasetyo,Kamar 306 - Bed C,Fraktur Clavicula Dextra,dr. S
   static getSurveys(): SurveyFeedback[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SURVEYS);
-      if (data) return JSON.parse(data);
+      if (data !== null) return JSON.parse(data);
     } catch {
       // Fallback
     }
@@ -390,5 +390,18 @@ RM-2026-203,Sdr. Dimas Prasetyo,Kamar 306 - Bed C,Fraktur Clavicula Dextra,dr. S
     const updated = list.filter((s) => s.id !== id);
     this.saveSurveys(updated);
     return updated;
+  }
+
+  static clearDefaultSurveys(): SurveyFeedback[] {
+    const defaultIds = new Set(['survey-1', 'survey-2', 'survey-3', 'survey-4']);
+    const list = this.getSurveys();
+    const updated = list.filter((s) => !defaultIds.has(s.id));
+    this.saveSurveys(updated);
+    return updated;
+  }
+
+  static clearAllSurveys(): SurveyFeedback[] {
+    this.saveSurveys([]);
+    return [];
   }
 }
