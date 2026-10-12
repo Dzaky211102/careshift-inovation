@@ -25,7 +25,7 @@ import {
   ExternalLink,
   Usb,
 } from 'lucide-react';
-import { Nurse, AppSettings, ShiftConfig, ShiftDuty } from '../types';
+import { Nurse, AppSettings, ShiftConfig, ShiftDuty, WardInfo } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConnectTvModal } from './ConnectTvModal';
 import { UsbFlashdiskModal } from './UsbFlashdiskModal';
@@ -44,6 +44,8 @@ interface CanvaSlidePresenterProps {
   onUpdateSettings?: (settings: AppSettings) => void;
   onUpdateAllNurses?: (nurses: Nurse[]) => void;
   onEnterTvMode?: () => void;
+  activeWardId?: string;
+  availableWards?: WardInfo[];
 }
 
 export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
@@ -53,6 +55,8 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
   settings,
   schedules = [],
   onEnterTvMode,
+  activeWardId,
+  availableWards,
 }) => {
   const [isConnectTvModalOpen, setIsConnectTvModalOpen] = useState(false);
   const [isUsbModalOpen, setIsUsbModalOpen] = useState(false);
@@ -751,6 +755,8 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
         onOpenUsbFlashdisk={() => setIsUsbModalOpen(true)}
         wardName={settings.wardName}
         hospitalName={settings.hospitalName}
+        activeWardId={activeWardId}
+        availableWards={availableWards}
       />
 
       {/* USB Flashdisk Modal for Non-Smart TV */}

@@ -1,5 +1,26 @@
 export type ShiftType = 'pagi' | 'siang' | 'malam' | string;
 
+export interface WardInfo {
+  id: string; // unique slug/id: "teratai", "melati", "mawar", "icu"
+  name: string; // "Ruang Rawat Inap Teratai - Lantai 3"
+  code: string; // "TERATAI"
+  floor?: string; // "Lantai 3"
+  building?: string; // "Gedung A"
+  colorTheme?: 'purple' | 'teal' | 'blue' | 'emerald' | 'rose' | 'indigo' | 'amber' | string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface WardExportPackage {
+  version: string;
+  exportedAt: string;
+  ward: WardInfo;
+  settings: AppSettings;
+  nurses: Nurse[];
+  schedules: ShiftDuty[];
+  patients: Patient[];
+}
+
 export interface ShiftConfig {
   id: string; // 'pagi', 'siang', 'malam'
   name: string; // e.g. "Sif Pagi"

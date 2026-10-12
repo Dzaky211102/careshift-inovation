@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   Sparkles,
   MessageSquareHeart,
+  Building2,
+  Copy,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 
@@ -22,6 +24,7 @@ interface SidebarProps {
   isAdmin: boolean;
   onOpenLoginModal: () => void;
   onLogoutAdmin: () => void;
+  onOpenWardManagement?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isAdmin,
   onOpenLoginModal,
   onLogoutAdmin,
+  onOpenWardManagement,
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Sif Hari Ini', shortLabel: 'Sif', icon: House, badge: 'Live' },
@@ -66,6 +70,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {hospitalName}
               </p>
             </div>
+          </div>
+
+          {/* Active Ward Banner */}
+          <div className="mb-3.5 p-2.5 rounded-2xl bg-white/15 border border-white/20 backdrop-blur-xs flex items-center justify-between text-xs">
+            <div className="min-w-0 pr-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-200 block">
+                Ruangan Aktif
+              </span>
+              <span className="font-extrabold text-white text-xs truncate block" title={wardName}>
+                {wardName}
+              </span>
+            </div>
+            {onOpenWardManagement && (
+              <button
+                type="button"
+                onClick={onOpenWardManagement}
+                className="px-2 py-1 bg-white text-purple-900 rounded-lg text-[10px] font-black shadow-xs hover:bg-purple-50 transition-all shrink-0 flex items-center gap-1 hover:scale-102"
+                title="Ganti atau Duplikat Ruangan"
+              >
+                <Building2 className="w-3 h-3 text-purple-700" />
+                <span>Ganti</span>
+              </button>
+            )}
           </div>
 
           {/* Role Status Banner */}

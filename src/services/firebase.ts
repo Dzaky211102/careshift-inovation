@@ -21,28 +21,39 @@ export interface SurveysMeta {
 }
 
 export const firebaseConfig = {
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'swift-totem-0cbh2',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1075833500315:web:c6969ff8ba294020ca8c3e',
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDf7skq07xqeiQasx0X_xYoQZ1S2z5vENs',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'swift-totem-0cbh2.firebaseapp.com',
-  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-careshiftjadwalp-f4ef0a13-d893-49b3-831a-e7266cff7b7e',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'swift-totem-0cbh2.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1075833500315',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
   measurementId: '',
-  oAuthClientId: '1075833500315-e23t434vmh0bl7u4ih2ac1v37bqisv4d.apps.googleusercontent.com',
+  oAuthClientId: '',
   recaptchaSiteKey: '',
 };
 
-let app: FirebaseApp;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
+export const isFirebaseConfigured: boolean = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId
+);
+
+let app: FirebaseApp | null = null;
+let db: Firestore | null = null;
+
+if (isFirebaseConfigured) {
+  try {
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    db = firebaseConfig.firestoreDatabaseId
+      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(app);
+  } catch (err) {
+    console.warn('[Firebase] Initialization notice:', err);
+    app = null;
+    db = null;
+  }
 }
 
-export const db: Firestore = firebaseConfig.firestoreDatabaseId
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+export { app, db };
 
 function cleanForFirestore<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
@@ -62,7 +73,7 @@ export class FirebaseSyncService {
     defaultEducation: EducationArticle[],
     defaultSurveys: SurveyFeedback[] = []
   ) {
-    if (this.isBootstrapped) return;
+    if (!db || this.isBootstrapped) return;
     this.isBootstrapped = true;
 
     try {
@@ -82,12 +93,14 @@ export class FirebaseSyncService {
             const upgraded: AppSettings = {
               ...defaultSettings,
               ...data,
-              shiftConfigs: data.shiftConfigs && data.shiftConfigs.length > 0
-                ? data.shiftConfigs
-                : defaultSettings.shiftConfigs,
-              dashboardImages: data.dashboardImages && data.dashboardImages.length > 0
-                ? data.dashboardImages
-                : defaultSettings.dashboardImages,
+              shiftConfigs:
+                data.shiftConfigs && data.shiftConfigs.length > 0
+                  ? data.shiftConfigs
+                  : defaultSettings.shiftConfigs,
+              dashboardImages:
+                data.dashboardImages && data.dashboardImages.length > 0
+                  ? data.dashboardImages
+                  : defaultSettings.dashboardImages,
             };
             await setDoc(sRef, cleanForFirestore(upgraded));
           }
@@ -100,6 +113,7 @@ export class FirebaseSyncService {
         console.log('[Firebase] Bootstrapping initial nurses...');
         const batch = writeBatch(db);
         defaultNurses.forEach((nurse) => {
+          if (!db) return;
           const nRef = doc(db, 'nurses', nurse.id);
           batch.set(nRef, cleanForFirestore(nurse));
         });
@@ -112,6 +126,7 @@ export class FirebaseSyncService {
         console.log('[Firebase] Bootstrapping initial schedules...');
         const batch = writeBatch(db);
         defaultSchedules.slice(0, 90).forEach((sch) => {
+          if (!db) return;
           const sRef = doc(db, 'schedules', `${sch.date}_${sch.shift}`);
           batch.set(sRef, cleanForFirestore(sch));
         });
@@ -124,6 +139,7 @@ export class FirebaseSyncService {
         console.log('[Firebase] Bootstrapping initial patients...');
         const batch = writeBatch(db);
         defaultPatients.forEach((pat) => {
+          if (!db) return;
           const pRef = doc(db, 'patients', pat.id);
           batch.set(pRef, cleanForFirestore(pat));
         });
@@ -136,6 +152,7 @@ export class FirebaseSyncService {
         console.log('[Firebase] Bootstrapping initial education...');
         const batch = writeBatch(db);
         defaultEducation.forEach((edu) => {
+          if (!db) return;
           const eRef = doc(db, 'education', edu.id);
           batch.set(eRef, cleanForFirestore(edu));
         });
@@ -164,6 +181,7 @@ export class FirebaseSyncService {
           console.log('[Firebase] Bootstrapping initial surveys...');
           const batch = writeBatch(db);
           defaultSurveys.forEach((sur) => {
+            if (!db) return;
             const sRef = doc(db, 'surveys', sur.id);
             batch.set(sRef, cleanForFirestore(sur));
           });
@@ -174,7 +192,6 @@ export class FirebaseSyncService {
           });
           await batch.commit();
         } else {
-          // Collection already had docs or is intentionally empty; mark metadata as bootstrapped
           await setDoc(
             metaRef,
             { bootstrapped: true, defaultSurveysCleared: false, deletedSurveyIds: [] },
@@ -190,6 +207,7 @@ export class FirebaseSyncService {
   // --- Real-time Listeners ---
 
   static subscribeSettings(onUpdate: (settings: AppSettings) => void) {
+    if (!db) return () => {};
     const sRef = doc(db, 'settings', 'global_settings');
     return onSnapshot(
       sRef,
@@ -275,23 +293,24 @@ export class FirebaseSyncService {
   }
 
   static async saveSettingsOnline(settings: AppSettings): Promise<void> {
+    if (!db) return;
     try {
       const sRef = doc(db, 'settings', 'global_settings');
       await setDoc(sRef, cleanForFirestore(settings));
     } catch (err) {
-      console.error('[Firebase] Error saving settings online:', err);
-      throw err;
+      console.warn('[Firebase] Notice saving settings online:', err);
     }
   }
 
   static subscribeNurses(onUpdate: (nurses: Nurse[]) => void) {
+    if (!db) return () => {};
     const nCol = collection(db, 'nurses');
     return onSnapshot(
       nCol,
       (snapshot) => {
         if (!snapshot.empty) {
           const nurses: Nurse[] = [];
-          snapshot.forEach((doc) => nurses.push(doc.data() as Nurse));
+          snapshot.forEach((d) => nurses.push(d.data() as Nurse));
           onUpdate(nurses);
         }
       },
@@ -300,33 +319,34 @@ export class FirebaseSyncService {
   }
 
   static async saveNurseOnline(nurse: Nurse): Promise<void> {
+    if (!db) return;
     try {
       const nRef = doc(db, 'nurses', nurse.id);
       await setDoc(nRef, cleanForFirestore(nurse));
     } catch (err) {
-      console.error('[Firebase] Error saving nurse online:', err);
-      throw err;
+      console.warn('[Firebase] Notice saving nurse online:', err);
     }
   }
 
   static async deleteNurseOnline(nurseId: string): Promise<void> {
+    if (!db) return;
     try {
       const nRef = doc(db, 'nurses', nurseId);
       await deleteDoc(nRef);
     } catch (err) {
-      console.error('[Firebase] Error deleting nurse online:', err);
-      throw err;
+      console.warn('[Firebase] Notice deleting nurse online:', err);
     }
   }
 
   static subscribeSchedules(onUpdate: (schedules: ShiftDuty[]) => void) {
+    if (!db) return () => {};
     const sCol = collection(db, 'schedules');
     return onSnapshot(
       sCol,
       (snapshot) => {
         if (!snapshot.empty) {
           const schedules: ShiftDuty[] = [];
-          snapshot.forEach((doc) => schedules.push(doc.data() as ShiftDuty));
+          snapshot.forEach((d) => schedules.push(d.data() as ShiftDuty));
           onUpdate(schedules);
         }
       },
@@ -335,23 +355,24 @@ export class FirebaseSyncService {
   }
 
   static async saveScheduleOnline(schedule: ShiftDuty): Promise<void> {
+    if (!db) return;
     try {
       const sRef = doc(db, 'schedules', `${schedule.date}_${schedule.shift}`);
       await setDoc(sRef, cleanForFirestore(schedule));
     } catch (err) {
-      console.error('[Firebase] Error saving schedule online:', err);
-      throw err;
+      console.warn('[Firebase] Notice saving schedule online:', err);
     }
   }
 
   static subscribePatients(onUpdate: (patients: Patient[]) => void) {
+    if (!db) return () => {};
     const pCol = collection(db, 'patients');
     return onSnapshot(
       pCol,
       (snapshot) => {
         if (!snapshot.empty) {
           const patients: Patient[] = [];
-          snapshot.forEach((doc) => patients.push(doc.data() as Patient));
+          snapshot.forEach((d) => patients.push(d.data() as Patient));
           onUpdate(patients);
         }
       },
@@ -360,33 +381,34 @@ export class FirebaseSyncService {
   }
 
   static async savePatientOnline(patient: Patient): Promise<void> {
+    if (!db) return;
     try {
       const pRef = doc(db, 'patients', patient.id);
       await setDoc(pRef, cleanForFirestore(patient));
     } catch (err) {
-      console.error('[Firebase] Error saving patient online:', err);
-      throw err;
+      console.warn('[Firebase] Notice saving patient online:', err);
     }
   }
 
   static async deletePatientOnline(patientId: string): Promise<void> {
+    if (!db) return;
     try {
       const pRef = doc(db, 'patients', patientId);
       await deleteDoc(pRef);
     } catch (err) {
-      console.error('[Firebase] Error deleting patient online:', err);
-      throw err;
+      console.warn('[Firebase] Notice deleting patient online:', err);
     }
   }
 
   static subscribeEducation(onUpdate: (articles: EducationArticle[]) => void) {
+    if (!db) return () => {};
     const eCol = collection(db, 'education');
     return onSnapshot(
       eCol,
       (snapshot) => {
         if (!snapshot.empty) {
           const articles: EducationArticle[] = [];
-          snapshot.forEach((doc) => articles.push(doc.data() as EducationArticle));
+          snapshot.forEach((d) => articles.push(d.data() as EducationArticle));
           onUpdate(articles);
         }
       },
@@ -395,39 +417,40 @@ export class FirebaseSyncService {
   }
 
   static async saveEducationOnline(article: EducationArticle): Promise<void> {
+    if (!db) return;
     try {
       const eRef = doc(db, 'education', article.id);
       await setDoc(eRef, cleanForFirestore(article));
     } catch (err) {
-      console.error('[Firebase] Error saving education online:', err);
-      throw err;
+      console.warn('[Firebase] Notice saving education online:', err);
     }
   }
 
   static async deleteEducationOnline(articleId: string): Promise<void> {
+    if (!db) return;
     try {
       const eRef = doc(db, 'education', articleId);
       await deleteDoc(eRef);
     } catch (err) {
-      console.warn('[Firebase] Error deleting education online:', err);
+      console.warn('[Firebase] Notice deleting education online:', err);
     }
   }
 
   // --- Surveys & Feedback ---
   static subscribeSurveys(onUpdate: (surveys: SurveyFeedback[]) => void) {
+    if (!db) return () => {};
     const sCol = collection(db, 'surveys');
     return onSnapshot(
       sCol,
       (snapshot) => {
         if (!snapshot.empty) {
           const list: SurveyFeedback[] = [];
-          snapshot.forEach((doc) => {
-            const data = doc.data() as SurveyFeedback;
+          snapshot.forEach((d) => {
+            const data = d.data() as SurveyFeedback;
             if (data && data.id) {
               list.push(data);
             }
           });
-          // Sort newest first
           list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           onUpdate(list);
         } else {
@@ -439,6 +462,7 @@ export class FirebaseSyncService {
   }
 
   static subscribeSurveyMeta(onUpdate: (meta: SurveysMeta) => void) {
+    if (!db) return () => {};
     const metaRef = doc(db, 'settings', 'surveys_meta');
     return onSnapshot(
       metaRef,
@@ -452,6 +476,7 @@ export class FirebaseSyncService {
   }
 
   static async saveSurveyOnline(survey: SurveyFeedback): Promise<void> {
+    if (!db) return;
     try {
       const sRef = doc(db, 'surveys', survey.id);
       await setDoc(sRef, cleanForFirestore(survey));
@@ -461,10 +486,10 @@ export class FirebaseSyncService {
   }
 
   static async deleteSurveyOnline(surveyId: string): Promise<void> {
+    if (!db) return;
     try {
       const sRef = doc(db, 'surveys', surveyId);
       await deleteDoc(sRef);
-      // Register in cloud tombstone so no other device resurrects it
       const metaRef = doc(db, 'settings', 'surveys_meta');
       await setDoc(
         metaRef,
@@ -480,9 +505,11 @@ export class FirebaseSyncService {
   }
 
   static async clearDefaultSurveysOnline(defaultIds: string[]): Promise<void> {
+    if (!db) return;
     try {
       const batch = writeBatch(db);
       defaultIds.forEach((id) => {
+        if (!db) return;
         batch.delete(doc(db, 'surveys', id));
       });
       const metaRef = doc(db, 'settings', 'surveys_meta');
@@ -502,9 +529,11 @@ export class FirebaseSyncService {
   }
 
   static async clearAllSurveysOnline(surveyIds: string[]): Promise<void> {
+    if (!db) return;
     try {
       const batch = writeBatch(db);
       surveyIds.forEach((id) => {
+        if (!db) return;
         batch.delete(doc(db, 'surveys', id));
       });
       const metaRef = doc(db, 'settings', 'surveys_meta');

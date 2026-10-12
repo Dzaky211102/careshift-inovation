@@ -1,10 +1,13 @@
-import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback } from '../types';
+import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback, WardInfo, WardExportPackage } from '../types';
 import {
   DEFAULT_NURSES,
   DEFAULT_PATIENTS,
   DEFAULT_EDUCATION_ARTICLES,
   DEFAULT_SETTINGS,
   DEFAULT_SURVEYS,
+  DEFAULT_WARDS,
+  DEFAULT_NURSES_MELATI,
+  DEFAULT_PATIENTS_MELATI,
   generateInitialMonthlySchedules,
 } from './defaultData';
 import { determineActiveShift } from '../utils/witaTime';
@@ -14,6 +17,8 @@ import {
 } from './indexedDb';
 
 export const STORAGE_KEYS = {
+  WARDS: 'careshift_wards_v2',
+  ACTIVE_WARD_ID: 'careshift_active_ward_id_v2',
   NURSES: 'careshift_nurses_v2',
   PATIENTS: 'careshift_patients_v2',
   SCHEDULES: 'careshift_schedules_v2',
@@ -44,8 +49,6 @@ export class StorageService {
       if (key === STORAGE_KEYS.EDUCATION) {
         try {
           const parsed: EducationArticle[] = JSON.parse(value);
-          // Strip large base64 media for the localStorage copy only
-          // (Full data is safely persisted in IndexedDB and in-memory cache)
           const lightweight: EducationArticle[] = parsed.map((art) => ({
             ...art,
             imageUrl:
@@ -63,61 +66,132 @@ export class StorageService {
 
           localStorage.removeItem(key);
           localStorage.setItem(key, JSON.stringify(lightweight));
-          console.info(
-            '[StorageService] Successfully saved lightweight articles to localStorage (full media stored in IndexedDB).'
-          );
           return true;
         } catch (subErr) {
           console.warn('[StorageService] Fallback lightweight save also failed:', subErr);
-          try {
-            // Remove bloated key so other keys have space to operate
-            localStorage.removeItem(key);
-          } catch {
-            // Ignore
-          }
         }
       }
 
-      // If general quota is exceeded, attempt to clear any stray large item without breaking critical state
       return false;
     }
   }
 
-  // --- NURSES ---
-  static getNurses(): Nurse[] {
+  // --- WARDS & ROOM MANAGEMENT ---
+  static getWards(): WardInfo[] {
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.NURSES);
-      if (data) return JSON.parse(data);
-    } catch {
-      // Fallback
+      const data = localStorage.getItem(STORAGE_KEYS.WARDS);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    this.saveWards(DEFAULT_WARDS);
+    return DEFAULT_WARDS;
+  }
+
+  static saveWards(wards: WardInfo[]): void {
+    this.safeSetItem(STORAGE_KEYS.WARDS, JSON.stringify(wards));
+  }
+
+  static getActiveWardId(): string {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlWard = params.get('ward');
+      if (urlWard && urlWard.trim()) {
+        const clean = urlWard.trim().toLowerCase();
+        try {
+          localStorage.setItem(STORAGE_KEYS.ACTIVE_WARD_ID, clean);
+        } catch {}
+        return clean;
+      }
+      try {
+        const stored = localStorage.getItem(STORAGE_KEYS.ACTIVE_WARD_ID);
+        if (stored && stored.trim()) return stored.trim().toLowerCase();
+      } catch {}
     }
-    this.saveNurses(DEFAULT_NURSES);
+    return 'teratai';
+  }
+
+  static setActiveWardId(wardId: string): void {
+    const clean = (wardId || 'teratai').trim().toLowerCase();
+    this.safeSetItem(STORAGE_KEYS.ACTIVE_WARD_ID, clean);
+  }
+
+  static getWardKey(wardId: string, baseKey: string): string {
+    const clean = (wardId || 'teratai').trim().toLowerCase();
+    return `careshift_ward_${clean}_${baseKey}`;
+  }
+
+  // --- NURSES (Per-Ward Isolation) ---
+  static getNurses(wardId?: string): Nurse[] {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    const wardKey = this.getWardKey(targetWard, 'nurses');
+    try {
+      const data = localStorage.getItem(wardKey);
+      if (data) return JSON.parse(data);
+
+      // Backward-compat for default ward 'teratai'
+      if (targetWard === 'teratai') {
+        const legacy = localStorage.getItem(STORAGE_KEYS.NURSES);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          this.saveNurses(parsed, 'teratai');
+          return parsed;
+        }
+      }
+    } catch {}
+
+    if (targetWard === 'melati') {
+      this.saveNurses(DEFAULT_NURSES_MELATI, 'melati');
+      return DEFAULT_NURSES_MELATI;
+    }
+
+    this.saveNurses(DEFAULT_NURSES, targetWard);
     return DEFAULT_NURSES;
   }
 
-  static saveNurses(nurses: Nurse[]): void {
-    this.safeSetItem(STORAGE_KEYS.NURSES, JSON.stringify(nurses));
+  static saveNurses(nurses: Nurse[], wardId?: string): void {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    this.safeSetItem(this.getWardKey(targetWard, 'nurses'), JSON.stringify(nurses));
+    if (targetWard === 'teratai') {
+      this.safeSetItem(STORAGE_KEYS.NURSES, JSON.stringify(nurses));
+    }
   }
 
-  // --- SCHEDULES ---
-  static getSchedules(): ShiftDuty[] {
+  // --- SCHEDULES (Per-Ward Isolation) ---
+  static getSchedules(wardId?: string): ShiftDuty[] {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    const wardKey = this.getWardKey(targetWard, 'schedules');
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+      const data = localStorage.getItem(wardKey);
       if (data) return JSON.parse(data);
-    } catch {
-      // Fallback
-    }
+
+      if (targetWard === 'teratai') {
+        const legacy = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          this.saveSchedules(parsed, 'teratai');
+          return parsed;
+        }
+      }
+    } catch {}
+
     const initial = generateInitialMonthlySchedules();
-    this.saveSchedules(initial);
+    this.saveSchedules(initial, targetWard);
     return initial;
   }
 
-  static saveSchedules(schedules: ShiftDuty[]): void {
-    this.safeSetItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+  static saveSchedules(schedules: ShiftDuty[], wardId?: string): void {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    this.safeSetItem(this.getWardKey(targetWard, 'schedules'), JSON.stringify(schedules));
+    if (targetWard === 'teratai') {
+      this.safeSetItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+    }
   }
 
-  static setSchedule(duty: ShiftDuty): void {
-    const schedules = this.getSchedules();
+  static setSchedule(duty: ShiftDuty, wardId?: string): void {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    const schedules = this.getSchedules(targetWard);
     const idx = schedules.findIndex(
       (s) => s.date === duty.date && s.shift === duty.shift
     );
@@ -126,23 +200,269 @@ export class StorageService {
     } else {
       schedules.push({ ...duty, updatedAt: new Date().toISOString() });
     }
-    this.saveSchedules(schedules);
+    this.saveSchedules(schedules, targetWard);
   }
 
-  // --- PATIENTS ---
-  static getPatients(): Patient[] {
+  // --- PATIENTS (Per-Ward Isolation) ---
+  static getPatients(wardId?: string): Patient[] {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    const wardKey = this.getWardKey(targetWard, 'patients');
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.PATIENTS);
+      const data = localStorage.getItem(wardKey);
       if (data) return JSON.parse(data);
-    } catch {
-      // Fallback
+
+      if (targetWard === 'teratai') {
+        const legacy = localStorage.getItem(STORAGE_KEYS.PATIENTS);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          this.savePatients(parsed, 'teratai');
+          return parsed;
+        }
+      }
+    } catch {}
+
+    if (targetWard === 'melati') {
+      this.savePatients(DEFAULT_PATIENTS_MELATI, 'melati');
+      return DEFAULT_PATIENTS_MELATI;
     }
-    this.savePatients(DEFAULT_PATIENTS);
+
+    this.savePatients(DEFAULT_PATIENTS, targetWard);
     return DEFAULT_PATIENTS;
   }
 
-  static savePatients(patients: Patient[]): void {
-    this.safeSetItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
+  static savePatients(patients: Patient[], wardId?: string): void {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    this.safeSetItem(this.getWardKey(targetWard, 'patients'), JSON.stringify(patients));
+    if (targetWard === 'teratai') {
+      this.safeSetItem(STORAGE_KEYS.PATIENTS, JSON.stringify(patients));
+    }
+  }
+
+  // --- SETTINGS (Per-Ward Isolation) ---
+  static getSettings(wardId?: string): AppSettings {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    const wardKey = this.getWardKey(targetWard, 'settings');
+    try {
+      const data = localStorage.getItem(wardKey);
+      if (data) {
+        const parsed = JSON.parse(data);
+        return {
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          shiftConfigs: parsed.shiftConfigs || DEFAULT_SETTINGS.shiftConfigs,
+          dashboardImages: parsed.dashboardImages || DEFAULT_SETTINGS.dashboardImages,
+          dashboardColorTheme: parsed.dashboardColorTheme || DEFAULT_SETTINGS.dashboardColorTheme || 'purple',
+        };
+      }
+
+      if (targetWard === 'teratai') {
+        const legacy = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          const full = {
+            ...DEFAULT_SETTINGS,
+            ...parsed,
+            shiftConfigs: parsed.shiftConfigs || DEFAULT_SETTINGS.shiftConfigs,
+            dashboardImages: parsed.dashboardImages || DEFAULT_SETTINGS.dashboardImages,
+            dashboardColorTheme: parsed.dashboardColorTheme || DEFAULT_SETTINGS.dashboardColorTheme || 'purple',
+          };
+          this.saveSettings(full, 'teratai');
+          return full;
+        }
+      }
+    } catch {}
+
+    if (targetWard === 'melati') {
+      const melatiSettings: AppSettings = {
+        ...DEFAULT_SETTINGS,
+        wardName: 'Ruang Rawat Inap Melati - Lantai 2',
+        dashboardColorTheme: 'teal',
+        footerText: 'Sistem Informasi Jadwal Jaga & Edukasi Terpadu Ruang Melati RS Citra Sehat Care © 2026.',
+      };
+      this.saveSettings(melatiSettings, 'melati');
+      return melatiSettings;
+    }
+
+    this.saveSettings(DEFAULT_SETTINGS, targetWard);
+    return DEFAULT_SETTINGS;
+  }
+
+  static saveSettings(settings: AppSettings, wardId?: string): void {
+    const targetWard = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    this.safeSetItem(this.getWardKey(targetWard, 'settings'), JSON.stringify(settings));
+    if (targetWard === 'teratai') {
+      this.safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    }
+  }
+
+  // --- DUPLICATE & CLONE WARD ---
+  static duplicateWard(
+    sourceWardId: string,
+    newWard: WardInfo,
+    options: {
+      copyNurses?: boolean;
+      copySchedules?: boolean;
+      copySettings?: boolean;
+      copyPatients?: boolean;
+    } = { copyNurses: true, copySchedules: true, copySettings: true, copyPatients: false }
+  ): WardInfo {
+    const source = (sourceWardId || 'teratai').trim().toLowerCase();
+    const target = newWard.id.trim().toLowerCase();
+
+    // 1. Settings
+    const sourceSettings = this.getSettings(source);
+    const newSettings: AppSettings = {
+      ...sourceSettings,
+      wardName: newWard.name,
+      dashboardColorTheme: newWard.colorTheme || 'teal',
+      footerText: `Sistem Informasi Jadwal Jaga & Edukasi Terpadu ${newWard.name} © 2026.`,
+    };
+    this.saveSettings(newSettings, target);
+
+    // 2. Nurses
+    if (options.copyNurses !== false) {
+      const sourceNurses = this.getNurses(source);
+      const clonedNurses: Nurse[] = sourceNurses.map((n, idx) => ({
+        ...n,
+        id: `${target}-nurse-${idx + 1}`,
+      }));
+      this.saveNurses(clonedNurses, target);
+    } else {
+      this.saveNurses([], target);
+    }
+
+    // 3. Schedules
+    if (options.copySchedules !== false) {
+      const sourceSchedules = this.getSchedules(source);
+      const clonedSchedules: ShiftDuty[] = sourceSchedules.map((s) => ({
+        ...s,
+        id: `duty-${target}-${s.date}-${s.shift}`,
+        notes: `Tim Dinas Sif ${s.shift.toUpperCase()} - ${newWard.name}`,
+      }));
+      this.saveSchedules(clonedSchedules, target);
+    } else {
+      const initialSchedules = generateInitialMonthlySchedules();
+      this.saveSchedules(initialSchedules, target);
+    }
+
+    // 4. Patients
+    if (options.copyPatients) {
+      const sourcePatients = this.getPatients(source);
+      const floorDigit = newWard.floor ? newWard.floor.replace(/\D/g, '') || '2' : '2';
+      const clonedPatients: Patient[] = sourcePatients.map((p, idx) => ({
+        ...p,
+        id: `pat-${target}-${idx + 1}`,
+        roomBed: p.roomBed.replace(/Kamar \d+/, `Kamar ${floorDigit}0${idx + 1}`),
+      }));
+      this.savePatients(clonedPatients, target);
+    } else {
+      this.savePatients([], target);
+    }
+
+    // 5. Update wards list
+    const currentWards = this.getWards();
+    const filtered = currentWards.filter((w) => w.id !== target);
+    const updatedWards = [...filtered, newWard];
+    this.saveWards(updatedWards);
+
+    // 6. Set as active ward
+    this.setActiveWardId(target);
+    return newWard;
+  }
+
+  // --- DELETE WARD ---
+  static deleteWard(wardId: string): boolean {
+    const clean = wardId.trim().toLowerCase();
+    const currentWards = this.getWards();
+    if (currentWards.length <= 1) return false;
+
+    const filtered = currentWards.filter((w) => w.id !== clean);
+    this.saveWards(filtered);
+
+    if (this.getActiveWardId() === clean) {
+      this.setActiveWardId(filtered[0].id);
+    }
+    return true;
+  }
+
+  // --- UPDATE WARD ---
+  static updateWard(wardId: string, updatedInfo: Partial<WardInfo>): WardInfo | null {
+    const clean = wardId.trim().toLowerCase();
+    const wards = this.getWards();
+    const idx = wards.findIndex((w) => w.id === clean);
+    if (idx < 0) return null;
+
+    const current = wards[idx];
+    const updatedWard: WardInfo = {
+      ...current,
+      ...updatedInfo,
+      id: current.id,
+    };
+    wards[idx] = updatedWard;
+    this.saveWards(wards);
+
+    // Sync wardName and colorTheme into settings for that ward
+    if (updatedInfo.name || updatedInfo.colorTheme) {
+      const currentSettings = this.getSettings(clean);
+      const updatedSettings: AppSettings = {
+        ...currentSettings,
+        wardName: updatedInfo.name || currentSettings.wardName,
+        dashboardColorTheme: updatedInfo.colorTheme || currentSettings.dashboardColorTheme || 'purple',
+      };
+      this.saveSettings(updatedSettings, clean);
+    }
+
+    return updatedWard;
+  }
+
+  // --- EXPORT & IMPORT WARD JSON ---
+  static exportWardJson(wardId?: string): string {
+    const target = (wardId || this.getActiveWardId()).trim().toLowerCase();
+    const ward = this.getWards().find((w) => w.id === target) || {
+      id: target,
+      name: `Ruang ${target}`,
+      code: target.toUpperCase(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const pkg: WardExportPackage = {
+      version: '2.0.0',
+      exportedAt: new Date().toISOString(),
+      ward,
+      settings: this.getSettings(target),
+      nurses: this.getNurses(target),
+      schedules: this.getSchedules(target),
+      patients: this.getPatients(target),
+    };
+    return JSON.stringify(pkg, null, 2);
+  }
+
+  static importWardJson(jsonStr: string): WardInfo {
+    const parsed = JSON.parse(jsonStr) as Partial<WardExportPackage>;
+    if (!parsed.ward || !parsed.ward.id || !parsed.ward.name) {
+      throw new Error('Format file backup ruangan tidak valid.');
+    }
+    const ward: WardInfo = {
+      id: parsed.ward.id.trim().toLowerCase(),
+      name: parsed.ward.name,
+      code: parsed.ward.code || parsed.ward.id.toUpperCase(),
+      floor: parsed.ward.floor || '',
+      building: parsed.ward.building || '',
+      colorTheme: parsed.ward.colorTheme || 'teal',
+      description: parsed.ward.description || '',
+      createdAt: parsed.ward.createdAt || new Date().toISOString(),
+    };
+
+    if (parsed.settings) this.saveSettings(parsed.settings, ward.id);
+    if (parsed.nurses) this.saveNurses(parsed.nurses, ward.id);
+    if (parsed.schedules) this.saveSchedules(parsed.schedules, ward.id);
+    if (parsed.patients) this.savePatients(parsed.patients, ward.id);
+
+    const wards = this.getWards();
+    const filtered = wards.filter((w) => w.id !== ward.id);
+    this.saveWards([...filtered, ward]);
+    this.setActiveWardId(ward.id);
+    return ward;
   }
 
   // --- EDUCATION ---
@@ -197,31 +517,6 @@ export class StorageService {
       console.warn('[StorageService] Error loading education from IndexedDB:', err);
     }
     return this.getEducationArticles();
-  }
-
-  // --- SETTINGS ---
-  static getSettings(): AppSettings {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      if (data) {
-        const parsed = JSON.parse(data);
-        return {
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          shiftConfigs: parsed.shiftConfigs || DEFAULT_SETTINGS.shiftConfigs,
-          dashboardImages: parsed.dashboardImages || DEFAULT_SETTINGS.dashboardImages,
-          dashboardColorTheme: parsed.dashboardColorTheme || DEFAULT_SETTINGS.dashboardColorTheme || 'purple',
-        };
-      }
-    } catch {
-      // Fallback
-    }
-    this.saveSettings(DEFAULT_SETTINGS);
-    return DEFAULT_SETTINGS;
-  }
-
-  static saveSettings(settings: AppSettings): void {
-    this.safeSetItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }
 
   // --- ADMIN STATUS ---

@@ -22,6 +22,7 @@ import {
   BookOpen,
   Star,
   MessageSquareHeart,
+  PenLine,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConnectTvModal } from './ConnectTvModal';
@@ -49,6 +50,7 @@ interface ShiftDisplayDashboardProps {
   onOpenSurvey?: () => void;
   onOpenMonthlySchedule: () => void;
   onOpenImageSettings: () => void;
+  onEditWard?: () => void;
 }
 
 export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
@@ -67,6 +69,7 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
   onOpenSurvey,
   onOpenMonthlySchedule,
   onOpenImageSettings,
+  onEditWard,
 }) => {
   const [isConnectTvOpen, setIsConnectTvOpen] = useState(false);
   const [isUsbModalOpen, setIsUsbModalOpen] = useState(false);
@@ -283,7 +286,17 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 text-purple-700 text-xs font-bold shadow-sm mb-3">
                 <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                <span>Ruang Perawatan Rawat Inap</span>
+                <span className="font-extrabold">{settings.wardName || 'Ruang Perawatan Rawat Inap'}</span>
+                {isAdmin && onEditWard && (
+                  <button
+                    type="button"
+                    onClick={onEditWard}
+                    className="ml-1 p-0.5 hover:bg-purple-100 rounded text-purple-600 hover:text-purple-900 transition-colors"
+                    title="Edit nama ruangan"
+                  >
+                    <PenLine className="w-3 h-3" />
+                  </button>
+                )}
               </div>
               <h1 className="font-display font-black text-2xl md:text-3xl text-slate-950 leading-tight">
                 {selectedShift === 'pagi' && 'Selamat Pagi! ☀️'}
@@ -747,6 +760,16 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200">
             <Sparkles className="w-3 h-3" />
             {settings.hospitalName} · {settings.wardName}
+            {isAdmin && onEditWard && (
+              <button
+                type="button"
+                onClick={onEditWard}
+                className="ml-1 p-0.5 hover:bg-purple-100 rounded text-purple-700 hover:text-purple-950 transition-colors"
+                title="Edit nama ruangan"
+              >
+                <PenLine className="w-2.5 h-2.5" />
+              </button>
+            )}
           </span>
         </div>
       </footer>

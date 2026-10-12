@@ -1,4 +1,4 @@
-import { Nurse, Patient, EducationArticle, AppSettings, ShiftDuty, DashboardImage, SurveyFeedback } from '../types';
+import { Nurse, Patient, EducationArticle, AppSettings, ShiftDuty, DashboardImage, SurveyFeedback, WardInfo } from '../types';
 import { DEFAULT_SHIFT_CONFIGS, getWitaDateString } from '../utils/witaTime';
 
 export const DEFAULT_NURSES: Nurse[] = [
@@ -592,3 +592,117 @@ export function generateInitialMonthlySchedules(): ShiftDuty[] {
 
   return duties;
 }
+
+export const DEFAULT_WARDS: WardInfo[] = [
+  {
+    id: 'teratai',
+    name: 'Ruang Rawat Inap Teratai - Lantai 3',
+    code: 'TERATAI',
+    floor: 'Lantai 3',
+    building: 'Gedung Teratai (Bedah & Penyakit Dalam)',
+    colorTheme: 'purple',
+    description: 'Ruangan rawat inap terpadu bedah dan rawat inap umum lantai 3',
+    createdAt: '2026-10-01T00:00:00.000Z',
+  },
+  {
+    id: 'melati',
+    name: 'Ruang Rawat Inap Melati - Lantai 2',
+    code: 'MELATI',
+    floor: 'Lantai 2',
+    building: 'Gedung Melati (Maternal & Anak)',
+    colorTheme: 'teal',
+    description: 'Ruangan rawat inap ibu, anak dan perawatan pasca melahirkan lantai 2',
+    createdAt: '2026-10-01T00:00:00.000Z',
+  },
+];
+
+export const DEFAULT_NURSES_MELATI: Nurse[] = [
+  {
+    id: 'melati-nurse-1',
+    name: 'Ns. Ratna Wulandari, S.Kep',
+    nip: 'NIRA: 3201.0065.101',
+    role: 'Kepala Ruangan',
+    photoUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 1, siang: 2, malam: 3 },
+  },
+  {
+    id: 'melati-nurse-2',
+    name: 'Ns. Hendra Gunawan, S.Kep',
+    nip: 'NIRA: 3201.0099.204',
+    role: 'Katim / Perawat Primer',
+    photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 4, siang: 5, malam: 6 },
+  },
+  {
+    id: 'melati-nurse-3',
+    name: 'Ns. Mega Utami, Amd.Kep',
+    nip: 'NIRA: 3201.0118.312',
+    role: 'Penanggung Jawab Shift',
+    photoUrl: 'https://images.unsplash.com/photo-1594824813524-87be361b7fcf?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 7, siang: 8, malam: 9 },
+  },
+  {
+    id: 'melati-nurse-4',
+    name: 'Ns. Faisal Akbar, S.Kep',
+    nip: 'NIRA: 3201.0135.405',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 10, siang: 11, malam: 12 },
+  },
+  {
+    id: 'melati-nurse-5',
+    name: 'Ns. Tiara Pratiwi, Amd.Kep',
+    nip: 'NIRA: 3201.0152.518',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 13, siang: 14, malam: 15 },
+  },
+  {
+    id: 'melati-nurse-6',
+    name: 'Ns. Bayu Pratama, S.Kep',
+    nip: 'NIRA: 3201.0177.620',
+    role: 'Perawat Pelaksana',
+    photoUrl: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=500&q=80',
+    isActive: true,
+    canvaSlideNumbers: { pagi: 16, siang: 17, malam: 18 },
+  },
+];
+
+export const DEFAULT_PATIENTS_MELATI: Patient[] = [
+  {
+    id: 'pat-melati-1',
+    rmNumber: 'RM-2026-081',
+    name: 'Ny. Safira Anggraini',
+    dateOfBirth: '1995-04-12',
+    gender: 'P',
+    roomBed: 'Kamar 201 - Bed A',
+    diagnosis: 'Post Sectio Caesarea H+1',
+    doctorName: 'dr. Farah Sp.OG',
+    procedureName: 'Operasi Caesar Terencana',
+    procedureDate: '2026-10-11',
+    stage: 'post_operasi',
+    allergies: 'Tidak ada',
+    notes: 'Mobilisasi bertahap miring kanan/kiri, observasi lochea dan TTV normal.',
+  },
+  {
+    id: 'pat-melati-2',
+    rmNumber: 'RM-2026-085',
+    name: 'An. Kevin Pratama (6 thn)',
+    dateOfBirth: '2020-08-19',
+    gender: 'L',
+    roomBed: 'Kamar 204 - Bed B',
+    diagnosis: 'Bronkopneumonia & Febris H-3',
+    doctorName: 'dr. Haris Sp.A',
+    procedureName: 'Terapi Inhalasi Nebulisasi & Antibiotik IV',
+    procedureDate: '2026-10-10',
+    stage: 'pemulihan_pulang',
+    allergies: 'Alergi Dingin',
+    notes: 'Nafsu makan membaik, suhu 36.8C, rencana kontrol obat pulang.',
+  },
+];
+

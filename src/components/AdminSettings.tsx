@@ -37,6 +37,7 @@ import {
   MessageSquareHeart,
   ExternalLink,
   Copy,
+  X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -52,10 +53,13 @@ import {
   ShiftConfig,
   DashboardImage,
   SurveyFeedback,
+  WardInfo,
 } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ImageCropperModal } from './ImageCropperModal';
+import { EditWardModal } from './EditWardModal';
 import { StorageService } from '../services/storage';
+import { showToast } from '../utils/toast';
 import { processMediaUpload } from '../utils/mediaCompressor';
 import {
   DEFAULT_SHIFT_CONFIGS,
@@ -80,6 +84,13 @@ interface AdminSettingsProps {
   onDeleteSurvey?: (id: string) => void;
   onClearDefaultSurveys?: () => void;
   onClearAllSurveys?: () => void;
+  wards?: WardInfo[];
+  activeWardId?: string;
+  onSelectWard?: (wardId: string) => void;
+  onOpenDuplicateWard?: (sourceWard: WardInfo) => void;
+  onDeleteWard?: (wardId: string) => void;
+  onImportWard?: (ward: WardInfo) => void;
+  onUpdateWard?: (wardId: string, updated: Partial<WardInfo>) => void;
 }
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({
@@ -97,11 +108,41 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onDeleteSurvey,
   onClearDefaultSurveys,
   onClearAllSurveys,
+  wards = [],
+  activeWardId = 'teratai',
+  onSelectWard,
+  onOpenDuplicateWard,
+  onDeleteWard,
+  onImportWard,
+  onUpdateWard,
 }) => {
   // Navigation Tabs within Admin
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'shift_settings' | 'dashboard_images' | 'perawat' | 'pasien_csv' | 'edukasi' | 'survey_settings' | 'tampilan'
-  >('shift_settings');
+    'ruangan' | 'shift_settings' | 'dashboard_images' | 'perawat' | 'pasien_csv' | 'edukasi' | 'survey_settings' | 'tampilan'
+  >('ruangan');
+
+  // Edit Ward State
+  const [editingWard, setEditingWard] = useState<WardInfo | null>(null);
+  const [inlineEditingWardId, setInlineEditingWardId] = useState<string | null>(null);
+  const [inlineWardName, setInlineWardName] = useState<string>('');
+
+  const handleSaveWard = (wardId: string, updated: Partial<WardInfo>) => {
+    StorageService.updateWard(wardId, updated);
+    if (onUpdateWard) {
+      onUpdateWard(wardId, updated);
+    }
+    if (wardId.trim().toLowerCase() === activeWardId.trim().toLowerCase() && updated.name) {
+      setGeneralForm((p) => ({ ...p, wardName: updated.name! }));
+    }
+    showToast(`Nama ruangan "${updated.name || wardId}" berhasil disimpan!`, 'success');
+    setEditingWard(null);
+  };
+
+  const handleSaveInlineWard = (wardId: string) => {
+    if (!inlineWardName.trim()) return;
+    handleSaveWard(wardId, { name: inlineWardName.trim() });
+    setInlineEditingWardId(null);
+  };
 
   const [surveySaveSuccess, setSurveySaveSuccess] = useState(false);
   const [surveyFilterStar, setSurveyFilterStar] = useState<number | 'all'>('all');
@@ -806,6 +847,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       {/* Admin Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {[
+          { id: 'ruangan', label: 'Ruangan & Duplikasi', icon: Building2, badge: `${wards.length} Ruang` },
           { id: 'shift_settings', label: 'Pengaturan Jam Sif', icon: Clock, badge: 'Penting' },
           { id: 'dashboard_images', label: 'Gambar Dashboard', icon: ImageIcon, badge: `${generalForm.dashboardImages?.length || 0}` },
           { id: 'perawat', label: 'Daftar Perawat', icon: Users, badge: `${nurses.length}` },
@@ -839,6 +881,328 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           );
         })}
       </div>
+
+      {/* ========================================================= */}
+      {/* TAB 0: MANAJEMEN & DUPLIKASI RUANGAN (MULTI-WARD SYSTEM)   */}
+      {/* ========================================================= */}
+      {activeAdminTab === 'ruangan' && (
+        <div className="space-y-6">
+          {/* Active Ward Spotlight */}
+          <div className="clay-card bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 text-white p-6 rounded-3xl border border-purple-400/30 shadow-xl relative overflow-hidden">
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-black flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Ruangan Aktif Saat Ini
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-slate-200 text-[11px] font-bold">
+                    Kode: {wards.find((w) => w.id === activeWardId)?.code || 'TERATAI'}
+                  </span>
+                </div>
+                <h3 className="font-display font-black text-2xl text-white">
+                  {settings.wardName || 'Ruang Rawat Inap Teratai - Lantai 3'}
+                </h3>
+                <p className="text-xs text-purple-200 mt-1 max-w-xl leading-relaxed">
+                  Semua perawat, jadwal jaga 3 shift, display TV, dan daftar kamar di bawah ini secara otomatis terisolasi untuk ruangan ini.
+                </p>
+
+                <div className="flex items-center gap-5 mt-4 text-xs font-bold text-slate-200">
+                  <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
+                    <Users className="w-4 h-4 text-purple-300" />
+                    <span>{nurses.length} Tenaga Perawat</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+                    <span>{patients.length} Pasien Terdata</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Spotlight Actions */}
+              <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cur = wards.find((w) => w.id === activeWardId) || wards[0];
+                    setEditingWard(cur);
+                  }}
+                  className="px-4 py-2.5 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all hover:scale-102 shadow-sm"
+                  title="Ubah nama ruangan, lantai, gedung, dan warna tema"
+                >
+                  <PenLine className="w-4 h-4 text-purple-200" />
+                  <span>✏️ Edit Nama Ruangan Ini</span>
+                </button>
+
+                {onOpenDuplicateWard && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = wards.find((w) => w.id === activeWardId) || wards[0];
+                      onOpenDuplicateWard(cur);
+                    }}
+                    className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-purple-900/50 flex items-center justify-center gap-2 transition-all hover:scale-102"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>⚡ Duplikat Ruangan Ini</span>
+                  </button>
+                )}
+
+                <a
+                  href={`${window.location.origin}${window.location.pathname}?mode=tv&ward=${activeWardId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Buka Layar TV Ruang Ini</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* All Hospital Wards Grid */}
+          <div className="clay-card bg-white p-6 border border-purple-100 rounded-3xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-purple-100">
+              <div>
+                <h4 className="font-display font-black text-lg text-slate-800 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-purple-600" />
+                  Daftar Seluruh Ruangan Rawat Inap ({wards.length})
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Setiap ruangan memiliki roster, jadwal, dan link TV display masing-masing tanpa saling tumpang tindih. Klik nama ruangan untuk mengeditnya.
+                </p>
+              </div>
+
+              {onOpenDuplicateWard && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cur = wards.find((w) => w.id === activeWardId) || wards[0];
+                    onOpenDuplicateWard(cur);
+                  }}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black shadow-xs flex items-center gap-1.5 transition-all self-start sm:self-auto hover:scale-102"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Tambah / Duplikat Ruangan Baru</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {wards.map((ward) => {
+                const isActive = ward.id === activeWardId;
+                const wardNurses = StorageService.getNurses(ward.id);
+                const wardPatients = StorageService.getPatients(ward.id);
+
+                return (
+                  <div
+                    key={ward.id}
+                    className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                      isActive
+                        ? 'bg-purple-50/60 border-purple-400 ring-2 ring-purple-500/20 shadow-sm'
+                        : 'bg-white hover:bg-slate-50/70 border-slate-200 shadow-xs'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            onClick={() => setEditingWard(ward)}
+                            className="text-[11px] font-mono font-black px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 cursor-pointer hover:bg-purple-200 transition-colors"
+                            title="Klik untuk mengedit kode ruangan"
+                          >
+                            {ward.code || ward.id.toUpperCase()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInlineEditingWardId(ward.id);
+                              setInlineWardName(ward.name);
+                            }}
+                            className="p-1 rounded-lg text-slate-400 hover:text-purple-700 hover:bg-purple-50 transition-colors"
+                            title="Edit langsung nama ruangan"
+                          >
+                            <PenLine className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {isActive ? (
+                          <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                            Aktif
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-slate-400">
+                            {ward.floor || 'Lantai 2'}
+                          </span>
+                        )}
+                      </div>
+
+                      {inlineEditingWardId === ward.id ? (
+                        <div
+                          className="my-2 p-2.5 bg-purple-50/90 rounded-xl border-2 border-purple-500 shadow-sm space-y-2 animate-fadeIn"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-black text-purple-900 flex items-center gap-1">
+                              <PenLine className="w-3 h-3 text-purple-600" />
+                              <span>Edit Nama Ruangan:</span>
+                            </label>
+                            <span className="text-[10px] text-purple-600 font-semibold">
+                              (Enter untuk Simpan)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              autoFocus
+                              value={inlineWardName}
+                              onChange={(e) => setInlineWardName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleSaveInlineWard(ward.id);
+                                } else if (e.key === 'Escape') {
+                                  setInlineEditingWardId(null);
+                                }
+                              }}
+                              placeholder="Nama Ruangan..."
+                              className="flex-1 px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-600 shadow-inner"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveInlineWard(ward.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black shadow-xs flex items-center gap-1 transition-colors"
+                              title="Simpan nama ruangan"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Simpan</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setInlineEditingWardId(null)}
+                              className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                              title="Batal"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-purple-100">
+                            <span>Bisa juga ubah lantai / tema:</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInlineEditingWardId(null);
+                                setEditingWard(ward);
+                              }}
+                              className="text-purple-700 hover:text-purple-900 font-bold underline"
+                            >
+                              Edit Semua Detail ▾
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <h5
+                          onClick={() => {
+                            setInlineEditingWardId(ward.id);
+                            setInlineWardName(ward.name);
+                          }}
+                          className="font-display font-black text-base text-slate-900 leading-snug cursor-pointer hover:text-purple-700 transition-colors group flex items-center justify-between gap-2"
+                          title="Klik untuk langsung mengedit nama ruangan ini"
+                        >
+                          <span className="group-hover:underline truncate">{ward.name}</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 group-hover:bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200 transition-colors shrink-0 ml-1">
+                            <PenLine className="w-3 h-3 text-purple-600" />
+                            <span>Edit Nama</span>
+                          </span>
+                        </h5>
+                      )}
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                        {ward.building ? `${ward.building} · ` : ''}
+                        {ward.description || 'Ruangan rawat inap terpadu'}
+                      </p>
+
+                      <div className="flex items-center gap-4 text-xs font-bold text-slate-600 my-3 pt-2 border-t border-slate-100">
+                        <span>👥 {wardNurses.length} Perawat</span>
+                        <span>🛏️ {wardPatients.length} Pasien</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {!isActive && onSelectWard && (
+                          <button
+                            type="button"
+                            onClick={() => onSelectWard(ward.id)}
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black transition-transform hover:scale-102"
+                          >
+                            Buka Ruang Ini
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingWard(ward)}
+                          className="px-2.5 py-1.5 bg-white hover:bg-purple-50 text-purple-800 border border-purple-200 hover:border-purple-300 rounded-xl transition-all shadow-2xs flex items-center gap-1 text-xs font-bold"
+                          title="Edit nama dan detail ruangan ini"
+                        >
+                          <PenLine className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Edit</span>
+                        </button>
+
+                        {onOpenDuplicateWard && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenDuplicateWard(ward)}
+                            className="p-1.5 bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-700 border border-slate-200 rounded-xl transition-colors"
+                            title="Duplikat dari ruangan ini"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <a
+                          href={`${window.location.origin}${window.location.pathname}?mode=tv&ward=${ward.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 rounded-xl transition-colors"
+                          title="Buka TV Ruangan Ini"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+
+                      {wards.length > 1 && onDeleteWard && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Yakin ingin menghapus ${ward.name}? Semua data perawat dan roster ruangan ini akan dihapus.`)) {
+                              onDeleteWard(ward.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                          title="Hapus Ruangan"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Edit Ward Modal */}
+          <EditWardModal
+            isOpen={Boolean(editingWard)}
+            onClose={() => setEditingWard(null)}
+            ward={editingWard}
+            onSaveWard={handleSaveWard}
+          />
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* TAB 1: PENGATURAN SIFT (WAKTU SIFT DAPAT DIATUR MANUAL - REQ 3) */}
@@ -2939,7 +3303,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               e.preventDefault();
               onUpdateSettings(generalForm);
               StorageService.saveSettings(generalForm);
-              alert('Pengaturan tampilan dan teks informasi berhasil disimpan secara terpusat!');
+              if (generalForm.wardName) {
+                StorageService.updateWard(activeWardId, { name: generalForm.wardName });
+                if (onUpdateWard) {
+                  onUpdateWard(activeWardId, { name: generalForm.wardName });
+                }
+              }
+              showToast('Pengaturan identitas rumah sakit dan nama ruangan berhasil disimpan!', 'success');
             }}
             className="clay-card bg-white p-6 border border-purple-100 rounded-3xl space-y-5"
           >

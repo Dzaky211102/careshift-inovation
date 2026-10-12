@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   Flame,
   Usb,
+  Building2,
 } from 'lucide-react';
+import { WardInfo } from '../types';
 
 interface ConnectTvModalProps {
   isOpen: boolean;
@@ -22,6 +24,8 @@ interface ConnectTvModalProps {
   onOpenUsbFlashdisk?: () => void;
   wardName: string;
   hospitalName: string;
+  activeWardId?: string;
+  availableWards?: WardInfo[];
 }
 
 export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
@@ -31,10 +35,17 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
   onOpenUsbFlashdisk,
   wardName,
   hospitalName,
+  activeWardId = 'teratai',
+  availableWards = [],
 }) => {
+  const [selectedWard, setSelectedWard] = useState<string>(activeWardId);
   const [copied, setCopied] = useState(false);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [wakeLockSupported, setWakeLockSupported] = useState(false);
+
+  useEffect(() => {
+    setSelectedWard(activeWardId);
+  }, [activeWardId]);
 
   useEffect(() => {
     if ('wakeLock' in navigator) {
@@ -44,7 +55,9 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
 
   if (!isOpen) return null;
 
-  const tvUrl = `${window.location.origin}${window.location.pathname}?mode=tv`;
+  const currentWardObj = availableWards.find((w) => w.id === selectedWard);
+  const currentDisplayName = currentWardObj?.name || wardName;
+  const tvUrl = `${window.location.origin}${window.location.pathname}?mode=tv&ward=${selectedWard}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(tvUrl);
@@ -91,10 +104,31 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
               Sambungkan Tampilan TV
             </h3>
             <p className="text-xs text-slate-500">
-              {hospitalName} · {wardName}
+              {hospitalName} · {currentDisplayName}
             </p>
           </div>
         </div>
+
+        {/* Room Switcher for TV */}
+        {availableWards && availableWards.length > 1 && (
+          <div className="mb-4 p-2.5 rounded-2xl bg-purple-50/70 border border-purple-200 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-purple-700" />
+              Pilih Ruangan TV:
+            </span>
+            <select
+              value={selectedWard}
+              onChange={(e) => setSelectedWard(e.target.value)}
+              className="px-2.5 py-1 bg-white border border-purple-200 rounded-xl text-xs font-black text-purple-950 focus:outline-none"
+            >
+              {availableWards.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* 3 Quick Action Cards */}
         <div className="space-y-3 mb-5">

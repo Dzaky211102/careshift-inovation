@@ -13,9 +13,11 @@ import {
   ShieldAlert,
   Lock,
   LockOpen,
+  Copy,
+  PenLine,
 } from 'lucide-react';
 import { ImageWithFallback } from './ImageWithFallback';
-import { ShiftConfig } from '../types';
+import { ShiftConfig, WardInfo } from '../types';
 import { getWitaTimeString, formatWitaFullDate, normalizeTimeToDot } from '../utils/witaTime';
 
 interface HeaderProps {
@@ -32,6 +34,11 @@ interface HeaderProps {
   onLogoutAdmin: () => void;
   onSearchPatient?: (query: string) => void;
   onSelectShiftPreview?: (shift: string) => void;
+  wards?: WardInfo[];
+  activeWardId?: string;
+  onOpenWardManagement?: () => void;
+  onOpenDuplicateWard?: () => void;
+  onEditActiveWard?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,6 +54,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLoginModal,
   onLogoutAdmin,
   onSearchPatient,
+  wards,
+  activeWardId,
+  onOpenWardManagement,
+  onOpenDuplicateWard,
+  onEditActiveWard,
 }) => {
   const [currentWitaDate, setCurrentWitaDate] = useState<Date>(new Date());
   const [searchQuery, setSearchQuery] = useState('');
@@ -161,8 +173,53 @@ export const Header: React.FC<HeaderProps> = ({
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-display font-black text-sm md:text-base text-slate-950 leading-tight">
-              {hospitalName} · <span className="text-purple-800 font-black">{wardName}</span>
+              {hospitalName}
             </h2>
+
+            {/* Interactive Ward Switcher Pill */}
+            {onOpenWardManagement ? (
+              <button
+                type="button"
+                onClick={onOpenWardManagement}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-100/80 hover:bg-purple-200/90 text-purple-950 border border-purple-300 text-xs font-black transition-all hover:scale-102 group shadow-2xs"
+                title="Klik untuk memilih ruangan lain atau duplikat aplikasi"
+              >
+                <Building2 className="w-3.5 h-3.5 text-purple-700 group-hover:rotate-6 transition-transform shrink-0" />
+                <span className="truncate max-w-[190px]">{wardName}</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-white/80 text-purple-800 font-extrabold ml-0.5 shrink-0 border border-purple-200">
+                  {wards && wards.length > 1 ? `${wards.length} Ruang ▾` : 'Ganti / Klon ▾'}
+                </span>
+              </button>
+            ) : (
+              <span className="text-purple-800 font-black text-sm md:text-base">· {wardName}</span>
+            )}
+
+            {/* Quick Edit Ward Name Button */}
+            {onEditActiveWard && (
+              <button
+                type="button"
+                onClick={onEditActiveWard}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold transition-all hover:scale-102 shadow-2xs"
+                title="Edit nama dan informasi ruangan aktif"
+              >
+                <PenLine className="w-3 h-3 text-purple-600" />
+                <span className="hidden sm:inline">Edit Ruang</span>
+              </button>
+            )}
+
+            {/* Quick Duplicate Button */}
+            {onOpenDuplicateWard && (
+              <button
+                type="button"
+                onClick={onOpenDuplicateWard}
+                className="hidden xl:flex items-center gap-1 px-2 py-1 rounded-xl bg-white hover:bg-purple-50 text-purple-800 border border-purple-200 text-[11px] font-bold shadow-2xs transition-colors"
+                title="Duplikat aplikasi untuk ruangan rawat inap lain"
+              >
+                <Copy className="w-3 h-3 text-purple-600" />
+                <span>+ Duplikat Ruang</span>
+              </button>
+            )}
+
             <span
               className={`text-[11px] px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${shiftInfo.className}`}
             >
