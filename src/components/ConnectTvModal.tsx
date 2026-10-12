@@ -113,8 +113,9 @@ export const ConnectTvModal: React.FC<ConnectTvModalProps> = ({
             </div>
             <button
               onClick={() => {
-                onOpenFullscreen();
-                onClose();
+                const url = new URL(window.location.href);
+                url.searchParams.set('mode', 'tv');
+                window.location.href = url.pathname + '?' + url.searchParams.toString();
               }}
               className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all whitespace-nowrap"
             >

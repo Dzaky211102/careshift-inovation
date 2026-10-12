@@ -8,8 +8,12 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
+    },
+    build: {
+      target: 'es2020',
+      cssTarget: ['chrome67', 'safari13', 'edge79'],
     },
     server: {
       host: '0.0.0.0',

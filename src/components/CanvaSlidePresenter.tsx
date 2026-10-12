@@ -43,6 +43,7 @@ interface CanvaSlidePresenterProps {
   schedules?: ShiftDuty[];
   onUpdateSettings?: (settings: AppSettings) => void;
   onUpdateAllNurses?: (nurses: Nurse[]) => void;
+  onEnterTvMode?: () => void;
 }
 
 export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
@@ -51,6 +52,7 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
   allNurses,
   settings,
   schedules = [],
+  onEnterTvMode,
 }) => {
   const [isConnectTvModalOpen, setIsConnectTvModalOpen] = useState(false);
   const [isUsbModalOpen, setIsUsbModalOpen] = useState(false);
@@ -299,12 +301,27 @@ export const CanvaSlidePresenter: React.FC<CanvaSlidePresenterProps> = ({
         {/* Shift Controls */}
         <div className="flex items-center gap-2 flex-wrap justify-end">
           <button
+            onClick={() => {
+              if (onEnterTvMode) {
+                onEnterTvMode();
+              } else {
+                window.location.search = '?mode=tv';
+              }
+            }}
+            className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-300 transition-all flex items-center gap-1.5"
+            title="Buka Mode TV Layar Penuh 16:9 Khusus Ruangan & Smart/Non-Smart TV"
+          >
+            <Tv className="w-3.5 h-3.5" />
+            <span>Mode TV 16:9</span>
+          </button>
+
+          <button
             onClick={() => setIsConnectTvModalOpen(true)}
             className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-300 transition-all flex items-center gap-1.5"
             title="Sambungkan ke Smart TV Ruangan"
           >
             <Tv className="w-3.5 h-3.5" />
-            <span>Sambungkan ke TV</span>
+            <span>Panduan Sambung TV</span>
           </button>
 
           <button

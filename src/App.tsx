@@ -12,6 +12,7 @@ import { EducationPortal } from './components/EducationPortal';
 import { SurveyFeedbackPortal } from './components/SurveyFeedbackPortal';
 import { AdminSettings } from './components/AdminSettings';
 import { AdminLoginModal } from './components/AdminLoginModal';
+import { TvDisplayView } from './components/TvDisplayView';
 import { getWitaDateString, determineActiveShift } from './utils/witaTime';
 
 export default function App() {
@@ -28,6 +29,45 @@ export default function App() {
   // Role Access Control (Requirement 2)
   const [isAdmin, setIsAdmin] = useState<boolean>(() => StorageService.getIsAdmin());
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // Dedicated TV Mode state (?mode=tv)
+  const [isTvMode, setIsTvMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('mode') === 'tv';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        setIsTvMode(params.get('mode') === 'tv');
+      }
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    return () => window.removeEventListener('popstate', handleUrlChange);
+  }, []);
+
+  const handleExitTvMode = () => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('mode');
+      window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+      setIsTvMode(false);
+      setActiveTab('canva');
+    }
+  };
+
+  const handleEnterTvMode = () => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('mode', 'tv');
+      window.history.pushState({}, '', url.pathname + '?' + url.searchParams.toString());
+      setIsTvMode(true);
+    }
+  };
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -306,6 +346,22 @@ export default function App() {
     }
   };
 
+  // =========================================================
+  // DEDICATED TV KIOSK DISPLAY VIEW (Samsung TV Browser Compatible)
+  // Completely hides sidebar, header, admin controls, and provides pure 16:9 kiosk display
+  // =========================================================
+  if (isTvMode) {
+    return (
+      <TvDisplayView
+        currentShift={currentShift}
+        settings={settings}
+        nurses={nurses}
+        schedules={schedules}
+        onExitTvMode={handleExitTvMode}
+      />
+    );
+  }
+
   return (
     <div
       className={`min-h-screen ${getThemeBackground()} transition-colors duration-700 font-sans text-slate-800`}
@@ -395,6 +451,7 @@ export default function App() {
                 schedules={schedules}
                 onUpdateSettings={handleUpdateSettings}
                 onUpdateAllNurses={handleUpdateNurses}
+                onEnterTvMode={handleEnterTvMode}
               />
             )}
 
