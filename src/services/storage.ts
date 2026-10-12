@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   SURVEYS: 'careshift_surveys_v2',
   SURVEYS_DELETED_IDS: 'careshift_deleted_survey_ids_v2',
   SURVEYS_DEFAULT_CLEARED: 'careshift_default_surveys_cleared_v2',
+  TV_SLIDE_DURATION: 'careshift_tv_slide_duration',
 };
 
 export class StorageService {
@@ -495,4 +496,29 @@ RM-2026-203,Sdr. Dimas Prasetyo,Kamar 306 - Bed C,Fraktur Clavicula Dextra,dr. S
     this.saveSurveys([]);
     return [];
   }
+
+  // --- TV DISPLAY SETTINGS ---
+  static getTvSlideDuration(): number {
+    try {
+      const val = localStorage.getItem(STORAGE_KEYS.TV_SLIDE_DURATION);
+      if (val) {
+        const num = parseInt(val, 10);
+        if (!isNaN(num) && num >= 3 && num <= 60) {
+          return num;
+        }
+      }
+    } catch {
+      // Ignore fallback
+    }
+    return 8;
+  }
+
+  static saveTvSlideDuration(durationSeconds: number): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.TV_SLIDE_DURATION, durationSeconds.toString());
+    } catch {
+      // Ignore fallback
+    }
+  }
 }
+

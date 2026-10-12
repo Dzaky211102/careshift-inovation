@@ -44,9 +44,16 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
   const [autoFollowShift, setAutoFollowShift] = useState(true);
   const [selectedShift, setSelectedShift] = useState<string>(currentShift);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [slideDurationSec, setSlideDurationSec] = useState<number>(() =>
-    StorageService.getTvSlideDuration()
-  );
+  const [slideDurationSec, setSlideDurationSec] = useState<number>(() => {
+    try {
+      if (typeof StorageService?.getTvSlideDuration === 'function') {
+        return StorageService.getTvSlideDuration();
+      }
+    } catch {
+      // Fallback
+    }
+    return 8;
+  });
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [slideProgress, setSlideProgress] = useState(0);
   const [witaDate, setWitaDate] = useState<Date>(new Date());
@@ -209,7 +216,13 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
 
   const handleDurationChange = (sec: number) => {
     setSlideDurationSec(sec);
-    StorageService.saveTvSlideDuration(sec);
+    try {
+      if (typeof StorageService?.saveTvSlideDuration === 'function') {
+        StorageService.saveTvSlideDuration(sec);
+      }
+    } catch {
+      // Ignore
+    }
   };
 
   const toggleFullscreen = () => {
