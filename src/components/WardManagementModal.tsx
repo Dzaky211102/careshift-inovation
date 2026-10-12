@@ -116,12 +116,16 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
             <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
                 Pusat Manajemen Bangsal
               </span>
               <span className="text-[11px] font-bold text-slate-500">
                 {wards.length} Ruangan Aktif
+              </span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                Tersinkron ke Semua Perangkat
               </span>
             </div>
             <h3 className="font-display font-black text-xl text-slate-900 leading-tight mt-0.5">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from './services/storage';
 import { FirebaseSyncService } from './services/firebase';
+import { WardSyncService } from './services/wardSync';
 import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback, WardInfo } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -77,7 +78,7 @@ export default function App() {
     showToast(`Beralih ke: ${newSettings.wardName}`, 'info');
   };
 
-  const handleDuplicateWardSuccess = (newWard: WardInfo) => {
+  const handleDuplicateWardSuccess = async (newWard: WardInfo) => {
     const sourceId = duplicateSourceWard?.id || activeWardId;
     StorageService.duplicateWard(sourceId, newWard);
     const updatedWards = StorageService.getWards();
@@ -85,28 +86,40 @@ export default function App() {
     setIsDuplicateModalOpen(false);
     setIsWardManagementOpen(false);
     handleSelectWard(newWard.id);
-    showToast(`⚡ Ruangan berhasil diduplikat! Selamat datang di ${newWard.name}`, 'success');
+
+    // Sync across all devices opening the link
+    await WardSyncService.saveWard(newWard);
+    try {
+      const pkg = StorageService.exportWardJson(newWard.id);
+      await WardSyncService.saveWardPackage(newWard.id, JSON.parse(pkg));
+    } catch (err) {
+      console.warn('[App] Ward package sync notice:', err);
+    }
+
+    showToast(`⚡ Ruangan berhasil diduplikat & disinkronkan ke seluruh perangkat: ${newWard.name}`, 'success');
   };
 
-  const handleDeleteWard = (wardId: string) => {
+  const handleDeleteWard = async (wardId: string) => {
     const success = StorageService.deleteWard(wardId);
     if (success) {
       const updatedWards = StorageService.getWards();
       setWards(updatedWards);
       const nextActive = StorageService.getActiveWardId();
       handleSelectWard(nextActive);
-      showToast('Ruangan berhasil dihapus.', 'info');
+      await WardSyncService.deleteWard(wardId);
+      showToast('Ruangan berhasil dihapus dan disinkronkan ke semua perangkat.', 'info');
     }
   };
 
-  const handleImportWard = (imported: WardInfo) => {
+  const handleImportWard = async (imported: WardInfo) => {
     const updatedWards = StorageService.getWards();
     setWards(updatedWards);
     handleSelectWard(imported.id);
-    showToast(`Ruangan ${imported.name} berhasil diimpor!`, 'success');
+    await WardSyncService.saveWard(imported);
+    showToast(`Ruangan ${imported.name} berhasil diimpor & disinkronkan!`, 'success');
   };
 
-  const handleUpdateWard = (wardId: string, updated: Partial<WardInfo>) => {
+  const handleUpdateWard = async (wardId: string, updated: Partial<WardInfo>) => {
     const updatedWard = StorageService.updateWard(wardId, updated);
     const updatedWards = StorageService.getWards();
     setWards(updatedWards);
@@ -123,23 +136,47 @@ export default function App() {
       setSettings(newSettings);
       setEffectiveTheme(StorageService.getEffectiveTheme(newSettings, new Date()));
     }
-    showToast(`Nama ruangan berhasil diperbarui: ${updated.name || ''}`, 'success');
+
+    // Broadcast and persist to server & Firebase for all devices
+    if (updatedWard) {
+      await WardSyncService.saveWard(updatedWard);
+      try {
+        const pkg = StorageService.exportWardJson(wardId);
+        await WardSyncService.saveWardPackage(wardId, JSON.parse(pkg));
+      } catch {}
+    }
+
+    showToast(`Nama ruangan berhasil diperbarui & disinkronkan: ${updated.name || ''}`, 'success');
   };
 
   useEffect(() => {
-    const handleUrlChange = () => {
+    const handleUrlChange = async () => {
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         setIsTvMode(params.get('mode') === 'tv');
         const urlWard = params.get('ward');
-        if (urlWard && urlWard.trim() && urlWard.trim().toLowerCase() !== activeWardId) {
-          handleSelectWard(urlWard.trim().toLowerCase());
+        if (urlWard && urlWard.trim()) {
+          const clean = urlWard.trim().toLowerCase();
+          // Check if this ward exists in current wards
+          const exists = wards.some((w) => w.id.trim().toLowerCase() === clean);
+          if (!exists) {
+            // Attempt to fetch from server
+            const pkg = await WardSyncService.fetchWardPackage(clean);
+            if (pkg && pkg.ward) {
+              StorageService.importWardJson(JSON.stringify(pkg));
+              setWards(StorageService.getWards());
+            }
+          }
+          if (clean !== activeWardId) {
+            handleSelectWard(clean);
+          }
         }
       }
     };
+    handleUrlChange();
     window.addEventListener('popstate', handleUrlChange);
     return () => window.removeEventListener('popstate', handleUrlChange);
-  }, [activeWardId]);
+  }, [activeWardId, wards]);
 
   const handleExitTvMode = () => {
     if (typeof window !== 'undefined') {
@@ -184,7 +221,7 @@ export default function App() {
     StorageService.getEffectiveTheme(settings, new Date())
   );
 
-  // 1. Firebase Online Realtime Synchronization (Requirement 7)
+  // 1. Cross-Device Realtime Synchronization (Server SSE + Firebase Online)
   useEffect(() => {
     // Bootstrap initial data if cloud is empty
     FirebaseSyncService.bootstrapData(
@@ -193,8 +230,41 @@ export default function App() {
       patients,
       settings,
       educationArticles,
-      surveys
+      surveys,
+      wards
     );
+
+    // Cross-Device Ward Synchronization (syncs room names to all devices opening the link)
+    const unsubWardSync = WardSyncService.subscribe((remoteWards, updatedWardId) => {
+      if (Array.isArray(remoteWards) && remoteWards.length > 0) {
+        setWards(remoteWards);
+
+        // If the current active ward had its name or details changed by another device, live-sync it!
+        const curActiveId = activeWardId.trim().toLowerCase();
+        const activeWardMatch = remoteWards.find((w) => w.id.trim().toLowerCase() === curActiveId);
+        if (activeWardMatch) {
+          const curSettings = StorageService.getSettings(curActiveId);
+          if (curSettings.wardName !== activeWardMatch.name) {
+            const syncedSettings: AppSettings = {
+              ...curSettings,
+              wardName: activeWardMatch.name,
+              dashboardColorTheme: activeWardMatch.colorTheme || curSettings.dashboardColorTheme || 'purple',
+            };
+            StorageService.saveSettings(syncedSettings, curActiveId);
+            setSettings(syncedSettings);
+            setEffectiveTheme(StorageService.getEffectiveTheme(syncedSettings, new Date()));
+            showToast(`⚡ Nama ruangan disinkronkan dari perangkat lain: ${activeWardMatch.name}`, 'info');
+          }
+        }
+      }
+    });
+
+    const unsubFirebaseWards = FirebaseSyncService.subscribeWards((remoteWards) => {
+      if (Array.isArray(remoteWards) && remoteWards.length > 0) {
+        setWards(remoteWards);
+        StorageService.saveWards(remoteWards);
+      }
+    });
 
     // Realtime listeners
     const unsubNurses = FirebaseSyncService.subscribeNurses((remoteNurses) => {
@@ -272,6 +342,8 @@ export default function App() {
       .catch((err) => console.warn('[App] IDB hydration notice:', err));
 
     return () => {
+      unsubWardSync();
+      unsubFirebaseWards();
       unsubNurses();
       unsubSchedules();
       unsubPatients();
@@ -280,7 +352,7 @@ export default function App() {
       unsubSurveys();
       unsubSurveyMeta();
     };
-  }, []);
+  }, [activeWardId]);
 
   // 2. WITA Time Interval Timer (every 10 seconds checks active shift)
   useEffect(() => {

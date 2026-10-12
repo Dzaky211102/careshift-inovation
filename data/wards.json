@@ -1,0 +1,23 @@
+[
+  {
+    "id": "teratai",
+    "name": "Ruang Rawat Inap Teratai - Lantai 3",
+    "code": "TERATAI",
+    "floor": "Lantai 3",
+    "building": "Gedung Teratai (Bedah & Penyakit Dalam)",
+    "colorTheme": "purple",
+    "description": "Ruangan rawat inap terpadu bedah dan rawat inap umum lantai 3",
+    "createdAt": "2026-10-01T00:00:00.000Z",
+    "updatedAt": "2026-10-12T10:00:41.121Z"
+  },
+  {
+    "id": "melati",
+    "name": "Ruang Rawat Inap Melati - Lantai 2",
+    "code": "MELATI",
+    "floor": "Lantai 2",
+    "building": "Gedung Melati (Maternal & Anak)",
+    "colorTheme": "teal",
+    "description": "Ruangan rawat inap ibu, anak dan perawatan pasca melahirkan lantai 2",
+    "createdAt": "2026-10-01T00:00:00.000Z"
+  }
+]

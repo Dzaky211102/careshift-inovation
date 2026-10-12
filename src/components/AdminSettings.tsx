@@ -37,6 +37,7 @@ import {
   MessageSquareHeart,
   ExternalLink,
   Copy,
+  Share2,
   X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -125,6 +126,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [editingWard, setEditingWard] = useState<WardInfo | null>(null);
   const [inlineEditingWardId, setInlineEditingWardId] = useState<string | null>(null);
   const [inlineWardName, setInlineWardName] = useState<string>('');
+  const [copiedWardUrlId, setCopiedWardUrlId] = useState<string | null>(null);
+  const [confirmDeleteWardId, setConfirmDeleteWardId] = useState<string | null>(null);
+
+  const handleCopyWardDirectUrl = (wardId: string) => {
+    const url = `${window.location.origin}${window.location.pathname}?ward=${wardId}`;
+    navigator.clipboard.writeText(url);
+    setCopiedWardUrlId(wardId);
+    showToast(`Link ruangan berhasil disalin! Buka link ini di perangkat lain untuk melihat sinkronisasi.`, 'success');
+    setTimeout(() => setCopiedWardUrlId(null), 3000);
+  };
 
   const handleSaveWard = (wardId: string, updated: Partial<WardInfo>) => {
     StorageService.updateWard(wardId, updated);
@@ -965,12 +976,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           <div className="clay-card bg-white p-6 border border-purple-100 rounded-3xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-purple-100">
               <div>
-                <h4 className="font-display font-black text-lg text-slate-800 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-purple-600" />
-                  Daftar Seluruh Ruangan Rawat Inap ({wards.length})
-                </h4>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <h4 className="font-display font-black text-lg text-slate-800 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-purple-600" />
+                    Daftar Seluruh Ruangan Rawat Inap ({wards.length})
+                  </h4>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-black shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Sinkron ke Semua Perangkat Aktif
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Setiap ruangan memiliki roster, jadwal, dan link TV display masing-masing tanpa saling tumpang tindih. Klik nama ruangan untuk mengeditnya.
+                  Setiap ruangan memiliki roster, jadwal, dan link TV display masing-masing. Nama ruangan yang Anda tambah atau edit di sini otomatis tersinkron ke semua komputer, HP, tablet, dan Smart TV yang membuka link.
                 </p>
               </div>
 
@@ -1152,6 +1169,30 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                           <span>Edit</span>
                         </button>
 
+                        {/* Share link to open on another device */}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyWardDirectUrl(ward.id)}
+                          className={`px-2.5 py-1.5 border rounded-xl transition-all shadow-2xs flex items-center gap-1 text-xs font-bold ${
+                            copiedWardUrlId === ward.id
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                              : 'bg-white hover:bg-purple-50 border-slate-200 hover:border-purple-200 text-slate-700 hover:text-purple-700'
+                          }`}
+                          title="Salin link langsung untuk membuka ruangan ini di perangkat lain"
+                        >
+                          {copiedWardUrlId === ward.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="text-[11px] text-emerald-700 font-extrabold">Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="w-3.5 h-3.5 text-purple-600" />
+                              <span className="text-[11px]">Link</span>
+                            </>
+                          )}
+                        </button>
+
                         {onOpenDuplicateWard && (
                           <button
                             type="button"
@@ -1173,19 +1214,38 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         </a>
                       </div>
 
-                      {wards.length > 1 && onDeleteWard && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Yakin ingin menghapus ${ward.name}? Semua data perawat dan roster ruangan ini akan dihapus.`)) {
-                              onDeleteWard(ward.id);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                          title="Hapus Ruangan"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                      {confirmDeleteWardId === ward.id ? (
+                        <div className="flex items-center gap-1 bg-rose-50 p-1 rounded-xl border border-rose-200 animate-fadeIn shrink-0">
+                          <span className="text-[10px] font-bold text-rose-800 px-1">Hapus?</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onDeleteWard) onDeleteWard(ward.id);
+                              setConfirmDeleteWardId(null);
+                            }}
+                            className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black transition-colors"
+                          >
+                            Ya
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteWardId(null)}
+                            className="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[10px] font-bold transition-colors"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      ) : (
+                        wards.length > 1 && onDeleteWard && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteWardId(ward.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                            title="Hapus Ruangan"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )
                       )}
                     </div>
                   </div>

@@ -12,7 +12,7 @@ import {
   writeBatch,
   arrayUnion,
 } from 'firebase/firestore';
-import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback } from '../types';
+import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback, WardInfo } from '../types';
 
 export interface SurveysMeta {
   bootstrapped?: boolean;
@@ -71,12 +71,28 @@ export class FirebaseSyncService {
     defaultPatients: Patient[],
     defaultSettings: AppSettings,
     defaultEducation: EducationArticle[],
-    defaultSurveys: SurveyFeedback[] = []
+    defaultSurveys: SurveyFeedback[] = [],
+    defaultWards: WardInfo[] = []
   ) {
     if (!db || this.isBootstrapped) return;
     this.isBootstrapped = true;
 
     try {
+      // 0. Wards collection
+      if (defaultWards.length > 0) {
+        const wardsSnap = await getDocs(collection(db, 'wards'));
+        if (wardsSnap.empty) {
+          console.log('[Firebase] Bootstrapping initial wards...');
+          const batch = writeBatch(db);
+          defaultWards.forEach((ward) => {
+            if (!db) return;
+            const wRef = doc(db, 'wards', ward.id.trim().toLowerCase());
+            batch.set(wRef, cleanForFirestore(ward));
+          });
+          await batch.commit();
+        }
+      }
+
       // 1. Settings
       const sRef = doc(db, 'settings', 'global_settings');
       const settingsSnap = await getDocs(collection(db, 'settings'));
@@ -549,6 +565,68 @@ export class FirebaseSyncService {
       await batch.commit();
     } catch (err) {
       console.warn('[Firebase] Notice clearing all surveys online:', err);
+    }
+  }
+
+  // --- Wards & Room Management ---
+  static subscribeWards(onUpdate: (wards: WardInfo[]) => void) {
+    if (!db) return () => {};
+    const wCol = collection(db, 'wards');
+    return onSnapshot(
+      wCol,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const list: WardInfo[] = [];
+          snapshot.forEach((d) => {
+            const data = d.data() as WardInfo;
+            if (data && data.id && data.name) {
+              list.push(data);
+            }
+          });
+          if (list.length > 0) {
+            onUpdate(list);
+          }
+        }
+      },
+      (err) => console.warn('[Firebase] Wards listener notice:', err)
+    );
+  }
+
+  static async saveWardOnline(ward: WardInfo): Promise<void> {
+    if (!db || !ward || !ward.id) return;
+    try {
+      const cleanId = ward.id.trim().toLowerCase();
+      const wRef = doc(db, 'wards', cleanId);
+      await setDoc(wRef, cleanForFirestore({ ...ward, id: cleanId }), { merge: true });
+    } catch (err) {
+      console.warn('[Firebase] Notice saving ward online:', err);
+    }
+  }
+
+  static async saveWardsOnline(wards: WardInfo[]): Promise<void> {
+    if (!db || !Array.isArray(wards) || wards.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      wards.forEach((ward) => {
+        if (!db || !ward || !ward.id) return;
+        const cleanId = ward.id.trim().toLowerCase();
+        const wRef = doc(db, 'wards', cleanId);
+        batch.set(wRef, cleanForFirestore({ ...ward, id: cleanId }), { merge: true });
+      });
+      await batch.commit();
+    } catch (err) {
+      console.warn('[Firebase] Notice saving all wards online:', err);
+    }
+  }
+
+  static async deleteWardOnline(wardId: string): Promise<void> {
+    if (!db || !wardId) return;
+    try {
+      const cleanId = wardId.trim().toLowerCase();
+      const wRef = doc(db, 'wards', cleanId);
+      await deleteDoc(wRef);
+    } catch (err) {
+      console.warn('[Firebase] Notice deleting ward online:', err);
     }
   }
 }
