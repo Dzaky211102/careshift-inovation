@@ -11,6 +11,7 @@ import {
   Check,
   X,
   Plus,
+  Lock,
 } from 'lucide-react';
 import { WardInfo } from '../types';
 
@@ -20,6 +21,8 @@ interface DuplicateWardModalProps {
   sourceWard: WardInfo;
   availableWards: WardInfo[];
   onDuplicateSuccess: (newWard: WardInfo) => void;
+  isAdmin?: boolean;
+  onOpenLoginModal?: () => void;
 }
 
 export const DuplicateWardModal: React.FC<DuplicateWardModalProps> = ({
@@ -28,6 +31,8 @@ export const DuplicateWardModal: React.FC<DuplicateWardModalProps> = ({
   sourceWard,
   availableWards,
   onDuplicateSuccess,
+  isAdmin = false,
+  onOpenLoginModal,
 }) => {
   const [selectedSourceId, setSelectedSourceId] = useState<string>(sourceWard.id);
   const [newWardName, setNewWardName] = useState<string>('');
@@ -65,6 +70,11 @@ export const DuplicateWardModal: React.FC<DuplicateWardModalProps> = ({
 
   const handleCreateDuplicate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang berhak menduplikat ruangan rawat inap. Silakan masuk terlebih dahulu.');
+      onOpenLoginModal?.();
+      return;
+    }
     if (!newWardName.trim()) return;
 
     const baseCode = (newWardCode.trim() || newWardName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)).toUpperCase();
@@ -124,18 +134,38 @@ export const DuplicateWardModal: React.FC<DuplicateWardModalProps> = ({
               <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
                 Multi-Ruangan
               </span>
-              <span className="text-[11px] font-bold text-slate-500">
-                Kloning Roster Terpadu
+              <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-amber-600" />
+                Khusus Admin
               </span>
             </div>
             <h3 className="font-display font-black text-xl text-slate-900 leading-tight mt-0.5">
-              Duplikat Ruangan Baru
+              Duplikat Ruangan Rawat Inap
             </h3>
             <p className="text-xs text-slate-500">
-              Buat salinan instan aplikasi untuk ruangan/bangsal lain dengan template perawat dan jam sift yang sama.
+              Buat ruangan baru berbasis format ruangan yang ada secara instan dan tersinkron ke semua perangkat.
             </p>
           </div>
         </div>
+
+        {/* Admin Access Notice if not Admin */}
+        {!isAdmin && (
+          <div className="mb-5 p-3.5 bg-amber-50 border border-amber-300 rounded-2xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Akses Terbatas: Hanya Admin yang dapat menduplikat ruangan rawat inap.</span>
+            </div>
+            {onOpenLoginModal && (
+              <button
+                type="button"
+                onClick={onOpenLoginModal}
+                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shrink-0 transition-colors shadow-xs"
+              >
+                Login Admin
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Quick Suggestions */}
         <div className="mb-5 bg-purple-50/80 p-3 rounded-2xl border border-purple-100">
@@ -307,10 +337,15 @@ export const DuplicateWardModal: React.FC<DuplicateWardModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-md shadow-purple-600/30 flex items-center gap-2 transition-all hover:scale-102"
+              className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-md flex items-center gap-2 transition-all ${
+                isAdmin
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/30 hover:scale-102 cursor-pointer'
+                  : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 cursor-pointer'
+              }`}
+              title={isAdmin ? 'Duplikat & Buka Ruangan' : 'Khusus Admin - Klik untuk masuk'}
             >
-              <Copy className="w-4 h-4" />
-              <span>⚡ Duplikat & Buka Ruangan Sekarang</span>
+              {isAdmin ? <Copy className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-700" />}
+              <span>{isAdmin ? '⚡ Duplikat & Buka Ruangan Sekarang' : 'Duplikat Ruangan (Khusus Admin)'}</span>
             </button>
           </div>
         </form>

@@ -23,6 +23,8 @@ import {
   getWitaTimeString,
   formatWitaFullDate,
   normalizeTimeToDot,
+  determineActiveShiftContext,
+  getScheduleDateForShift,
 } from '../utils/witaTime';
 import { StorageService } from '../services/storage';
 
@@ -107,12 +109,20 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
     }
   }, [currentShift, autoFollowShift]);
 
-  const effectiveShift = autoFollowShift ? currentShift : selectedShift;
+  // 4. Resolve active shift context & schedule date (Requirement 2: Accurate night shift overnight rollover)
+  const activeShiftCtx = determineActiveShiftContext(settings?.shiftConfigs, witaDate);
+  const liveShift = activeShiftCtx.shiftId;
+  const effectiveShift = autoFollowShift ? liveShift : selectedShift;
 
-  // 4. Resolve active duty nurses
-  const todayWitaDate = getWitaDateString(witaDate);
+  const effectiveScheduleDate = getScheduleDateForShift(
+    effectiveShift,
+    activeShiftCtx,
+    settings?.shiftConfigs,
+    witaDate
+  );
+
   const todayDuty = schedules.find(
-    (s) => s.date === todayWitaDate && s.shift === effectiveShift
+    (s) => s.date === effectiveScheduleDate && s.shift === effectiveShift
   );
   const dutyNurseIds = todayDuty?.nurseIds || [];
   const assignedNurses = nurses.filter((n) => dutyNurseIds.includes(n.id));

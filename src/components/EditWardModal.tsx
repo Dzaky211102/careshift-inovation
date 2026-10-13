@@ -5,6 +5,7 @@ import {
   X,
   Save,
   Palette,
+  Lock,
 } from 'lucide-react';
 import { WardInfo } from '../types';
 
@@ -13,6 +14,8 @@ interface EditWardModalProps {
   onClose: () => void;
   ward: WardInfo | null;
   onSaveWard: (wardId: string, updated: Partial<WardInfo>) => void;
+  isAdmin?: boolean;
+  onOpenLoginModal?: () => void;
 }
 
 export const EditWardModal: React.FC<EditWardModalProps> = ({
@@ -20,6 +23,8 @@ export const EditWardModal: React.FC<EditWardModalProps> = ({
   onClose,
   ward,
   onSaveWard,
+  isAdmin = false,
+  onOpenLoginModal,
 }) => {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -43,6 +48,11 @@ export const EditWardModal: React.FC<EditWardModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      alert('Akses Ditolak: Hanya Admin yang berhak mengedit informasi ruangan rawat inap. Silakan masuk terlebih dahulu.');
+      onOpenLoginModal?.();
+      return;
+    }
     if (!name.trim()) return;
 
     onSaveWard(ward.id, {
@@ -84,9 +94,15 @@ export const EditWardModal: React.FC<EditWardModalProps> = ({
             <PenLine className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
-              Pengaturan Identitas
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                Pengaturan Identitas
+              </span>
+              <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-amber-600" />
+                Khusus Admin
+              </span>
+            </div>
             <h3 className="font-display font-black text-xl text-slate-900 leading-tight mt-0.5">
               Edit Nama & Informasi Ruangan
             </h3>
@@ -95,6 +111,25 @@ export const EditWardModal: React.FC<EditWardModalProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Admin Access Notice if not Admin */}
+        {!isAdmin && (
+          <div className="mb-5 p-3.5 bg-amber-50 border border-amber-300 rounded-2xl flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Akses Terbatas: Hanya Admin yang dapat mengedit nama & informasi ruangan rawat inap.</span>
+            </div>
+            {onOpenLoginModal && (
+              <button
+                type="button"
+                onClick={onOpenLoginModal}
+                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shrink-0 transition-colors shadow-xs"
+              >
+                Login Admin
+              </button>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Ward Name */}
@@ -207,10 +242,15 @@ export const EditWardModal: React.FC<EditWardModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs shadow-md shadow-purple-600/30 flex items-center gap-2 transition-all hover:scale-102"
+              className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-md flex items-center gap-2 transition-all ${
+                isAdmin
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/30 hover:scale-102 cursor-pointer'
+                  : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 cursor-pointer'
+              }`}
+              title={isAdmin ? 'Simpan Perubahan Ruangan' : 'Khusus Admin - Klik untuk login'}
             >
-              <Save className="w-4 h-4" />
-              <span>Simpan Perubahan Ruangan</span>
+              {isAdmin ? <Save className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-700" />}
+              <span>{isAdmin ? 'Simpan Perubahan Ruangan' : 'Simpan (Khusus Admin)'}</span>
             </button>
           </div>
         </form>

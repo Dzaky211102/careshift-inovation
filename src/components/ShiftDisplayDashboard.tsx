@@ -358,6 +358,11 @@ export const ShiftDisplayDashboard: React.FC<ShiftDisplayDashboardProps> = ({
                   Sif Sedang Aktif
                 </span>
               )}
+              {todayDuties?.date && (
+                <span className="text-[10px] text-purple-800 bg-purple-50 px-2 py-0.5 rounded-md font-bold border border-purple-200">
+                  Roster Tanggal: {todayDuties.date}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">

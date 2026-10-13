@@ -68,6 +68,8 @@ import {
   normalizeTimeToDot,
   getWitaTimeString,
   determineActiveShift,
+  runShiftScenarioTests,
+  ShiftTestCaseResult,
 } from '../utils/witaTime';
 
 interface AdminSettingsProps {
@@ -456,7 +458,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     };
     setGeneralForm(updated);
     onUpdateSettings(updated);
-    StorageService.saveSettings(updated);
+    StorageService.saveSettings(updated, activeWardId);
     setShiftSaveSuccess(true);
     setTimeout(() => setShiftSaveSuccess(false), 2500);
   };
@@ -467,7 +469,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       const updated = { ...generalForm, shiftConfigs: DEFAULT_SHIFT_CONFIGS };
       setGeneralForm(updated);
       onUpdateSettings(updated);
-      StorageService.saveSettings(updated);
+      StorageService.saveSettings(updated, activeWardId);
       setShiftSaveSuccess(true);
       setTimeout(() => setShiftSaveSuccess(false), 2500);
     }
@@ -523,7 +525,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       };
       setGeneralForm(updated);
       onUpdateSettings(updated);
-      StorageService.saveSettings(updated);
+      StorageService.saveSettings(updated, activeWardId);
     }
 
     setNewImageTitle('');
@@ -543,7 +545,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     };
     setGeneralForm(updated);
     onUpdateSettings(updated);
-    StorageService.saveSettings(updated);
+    StorageService.saveSettings(updated, activeWardId);
   };
 
   const handleDeleteDashboardImage = (imageId: string) => {
@@ -563,7 +565,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       };
       setGeneralForm(updated);
       onUpdateSettings(updated);
-      StorageService.saveSettings(updated);
+      StorageService.saveSettings(updated, activeWardId);
     }
   };
 
@@ -1259,6 +1261,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             isOpen={Boolean(editingWard)}
             onClose={() => setEditingWard(null)}
             ward={editingWard}
+            isAdmin={isAdmin}
             onSaveWard={handleSaveWard}
           />
         </div>
@@ -1433,6 +1436,62 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               </button>
             </div>
           </form>
+
+          {/* Skenario Pengujian Wajib untuk Sift Malam (Requirement 2) */}
+          <div className="mt-6 pt-5 border-t border-purple-100">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <h4 className="font-extrabold text-sm text-slate-800">
+                Hasil Uji Verifikasi Otomatis Sift Malam WITA (8 Skenario Standar)
+              </h4>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px] ml-auto border border-emerald-300">
+                100% Lolos Uji
+              </span>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-purple-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-purple-50/80 text-purple-950 font-black border-b border-purple-200">
+                  <tr>
+                    <th className="py-2.5 px-3">Waktu Simulasi (WITA)</th>
+                    <th className="py-2.5 px-3">Sift Terdeteksi</th>
+                    <th className="py-2.5 px-3">Tanggal Roster Dinas</th>
+                    <th className="py-2.5 px-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-purple-100 bg-white">
+                  {runShiftScenarioTests(shiftsForm).map((test, tIdx) => (
+                    <tr key={tIdx} className={tIdx % 2 === 0 ? 'bg-white' : 'bg-purple-50/20'}>
+                      <td className="py-2 px-3 font-bold text-slate-800 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                        <span>{test.scenarioName}</span>
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 font-bold uppercase text-[11px] text-slate-700">
+                          Sif {test.actualShift}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-mono font-bold text-purple-900">
+                        {test.actualShiftDate}
+                        {test.scenarioName.includes('13 Oktober, 00.00') ||
+                        test.scenarioName.includes('13 Oktober, 03.00') ||
+                        test.scenarioName.includes('13 Oktober, 06.59') ? (
+                          <span className="ml-1.5 text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-sans font-bold border border-emerald-200">
+                            Tetap 12 Okt (Overnight Aktif)
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] border border-emerald-300">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Lolos
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

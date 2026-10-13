@@ -303,7 +303,16 @@ class WardSyncManager {
         body: JSON.stringify(pkg),
       });
     } catch (err) {
-      console.warn('[WardSync] Notice saving ward package:', err);
+      console.warn('[WardSync] Notice saving ward package to server:', err);
+    }
+
+    try {
+      if (pkg.settings) FirebaseSyncService.saveWardSettingsOnline(cleanId, pkg.settings).catch(() => {});
+      if (pkg.nurses) FirebaseSyncService.saveWardNursesBulkOnline(cleanId, pkg.nurses).catch(() => {});
+      if (pkg.schedules) FirebaseSyncService.saveWardSchedulesBulkOnline(cleanId, pkg.schedules).catch(() => {});
+      if (pkg.ward) FirebaseSyncService.saveWardOnline(pkg.ward).catch(() => {});
+    } catch (err) {
+      console.warn('[WardSync] Notice saving ward package to Firebase:', err);
     }
   }
 

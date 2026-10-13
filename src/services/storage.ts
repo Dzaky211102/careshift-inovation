@@ -15,6 +15,7 @@ import {
   saveEducationArticlesIDB,
   getEducationArticlesIDB,
 } from './indexedDb';
+import { FirebaseSyncService } from './firebase';
 
 export const STORAGE_KEYS = {
   WARDS: 'careshift_wards_v2',
@@ -320,36 +321,45 @@ export class StorageService {
     this.saveSettings(newSettings, target);
 
     // 2. Nurses
+    let clonedNurses: Nurse[] = [];
+    const nurseIdMap = new Map<string, string>();
     if (options.copyNurses !== false) {
       const sourceNurses = this.getNurses(source);
-      const clonedNurses: Nurse[] = sourceNurses.map((n, idx) => ({
-        ...n,
-        id: `${target}-nurse-${idx + 1}`,
-      }));
+      clonedNurses = sourceNurses.map((n, idx) => {
+        const newId = `${target}-nurse-${idx + 1}`;
+        nurseIdMap.set(n.id, newId);
+        return {
+          ...n,
+          id: newId,
+        };
+      });
       this.saveNurses(clonedNurses, target);
     } else {
       this.saveNurses([], target);
     }
 
-    // 3. Schedules
+    // 3. Schedules (Ensure nurseIds are accurately mapped to the new cloned nurse IDs!)
+    let clonedSchedules: ShiftDuty[] = [];
     if (options.copySchedules !== false) {
       const sourceSchedules = this.getSchedules(source);
-      const clonedSchedules: ShiftDuty[] = sourceSchedules.map((s) => ({
+      clonedSchedules = sourceSchedules.map((s) => ({
         ...s,
         id: `duty-${target}-${s.date}-${s.shift}`,
+        nurseIds: (s.nurseIds || []).map((oldId) => nurseIdMap.get(oldId) || oldId),
         notes: `Tim Dinas Sif ${s.shift.toUpperCase()} - ${newWard.name}`,
       }));
       this.saveSchedules(clonedSchedules, target);
     } else {
-      const initialSchedules = generateInitialMonthlySchedules();
-      this.saveSchedules(initialSchedules, target);
+      clonedSchedules = generateInitialMonthlySchedules();
+      this.saveSchedules(clonedSchedules, target);
     }
 
     // 4. Patients
+    let clonedPatients: Patient[] = [];
     if (options.copyPatients) {
       const sourcePatients = this.getPatients(source);
       const floorDigit = newWard.floor ? newWard.floor.replace(/\D/g, '') || '2' : '2';
-      const clonedPatients: Patient[] = sourcePatients.map((p, idx) => ({
+      clonedPatients = sourcePatients.map((p, idx) => ({
         ...p,
         id: `pat-${target}-${idx + 1}`,
         roomBed: p.roomBed.replace(/Kamar \d+/, `Kamar ${floorDigit}0${idx + 1}`),
@@ -367,6 +377,21 @@ export class StorageService {
 
     // 6. Set as active ward
     this.setActiveWardId(target);
+
+    // 7. Sync new ward data to Firebase Cloud Firestore for all devices
+    try {
+      FirebaseSyncService.saveWardOnline(newWard).catch(() => {});
+      FirebaseSyncService.saveWardSettingsOnline(target, newSettings).catch(() => {});
+      if (clonedNurses.length > 0) {
+        FirebaseSyncService.saveWardNursesBulkOnline(target, clonedNurses).catch(() => {});
+      }
+      if (clonedSchedules.length > 0) {
+        FirebaseSyncService.saveWardSchedulesBulkOnline(target, clonedSchedules).catch(() => {});
+      }
+    } catch (fErr) {
+      console.warn('[StorageService] Firebase duplicate sync notice:', fErr);
+    }
+
     return newWard;
   }
 

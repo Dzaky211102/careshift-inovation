@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Sparkles,
   PenLine,
+  Lock,
 } from 'lucide-react';
 import { WardInfo } from '../types';
 import { StorageService } from '../services/storage';
@@ -30,6 +31,8 @@ interface WardManagementModalProps {
   onDeleteWard: (wardId: string) => void;
   onImportWard: (ward: WardInfo) => void;
   onUpdateWard?: (wardId: string, updated: Partial<WardInfo>) => void;
+  isAdmin?: boolean;
+  onOpenLoginModal?: () => void;
 }
 
 export const WardManagementModal: React.FC<WardManagementModalProps> = ({
@@ -42,7 +45,10 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
   onDeleteWard,
   onImportWard,
   onUpdateWard,
+  isAdmin = false,
+  onOpenLoginModal,
 }) => {
+  const importFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [copiedWardId, setCopiedWardId] = useState<string | null>(null);
   const [copiedTvId, setCopiedTvId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -137,6 +143,33 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
           </div>
         </div>
 
+        {/* Admin Access Banner */}
+        {!isAdmin ? (
+          <div className="flex items-center justify-between gap-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl mb-4 text-xs">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Fitur Edit Nama, Duplikasi & Hapus Ruangan khusus Administrator.</span>
+            </div>
+            {onOpenLoginModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenLoginModal();
+                }}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shrink-0 transition-colors shadow-xs cursor-pointer"
+              >
+                Masuk Admin
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-2xl mb-4 text-xs text-emerald-900 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>Akses Admin Aktif: Anda berwenang mengedit nama, menduplikat, dan menghapus ruangan.</span>
+          </div>
+        )}
+
         {/* Action Top Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 bg-purple-50/70 border border-purple-100 rounded-2xl mb-5">
           <div className="flex items-center gap-2">
@@ -147,26 +180,60 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              type="button"
               onClick={() => {
+                if (!isAdmin) {
+                  onOpenLoginModal?.();
+                  alert('Akses Terbatas: Hanya Admin yang dapat menduplikat ruangan rawat inap. Silakan masuk terlebih dahulu.');
+                  return;
+                }
                 const current = wards.find((w) => w.id === activeWardId) || wards[0];
                 onOpenDuplicateModal(current);
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs rounded-xl shadow-xs transition-all hover:scale-102"
+              title={isAdmin ? 'Duplikat ruangan aktif' : 'Duplikat Ruangan (Khusus Admin)'}
             >
-              <Copy className="w-3.5 h-3.5" />
+              {isAdmin ? <Copy className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
               <span>Duplikat Ruangan Aktif</span>
+              {!isAdmin && (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-white/20 text-white font-bold">
+                  Admin
+                </span>
+              )}
             </button>
 
-            <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-purple-200 text-purple-900 font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-colors">
-              <Upload className="w-3.5 h-3.5 text-purple-600" />
+            <button
+              type="button"
+              onClick={() => {
+                if (!isAdmin) {
+                  onOpenLoginModal?.();
+                  alert('Akses Terbatas: Hanya Admin yang dapat mengimpor file ruangan rawat inap. Silakan masuk terlebih dahulu.');
+                  return;
+                }
+                importFileInputRef.current?.click();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-purple-200 text-purple-900 font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-colors"
+              title={isAdmin ? 'Impor backup ruangan' : 'Impor Ruangan (Khusus Admin)'}
+            >
+              {isAdmin ? (
+                <Upload className="w-3.5 h-3.5 text-purple-600" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-amber-600" />
+              )}
               <span>Impor Backup Ruangan</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportFile}
-                className="hidden"
-              />
-            </label>
+              {!isAdmin && (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
+                  Admin
+                </span>
+              )}
+            </button>
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportFile}
+              className="hidden"
+            />
           </div>
         </div>
 
@@ -248,22 +315,38 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
                       </button>
                     )}
 
-                    {/* Edit button */}
+                    {/* Edit button (Khusus Admin) */}
                     <button
-                      onClick={() => setEditingWard(ward)}
+                      type="button"
+                      onClick={() => {
+                        if (!isAdmin) {
+                          onOpenLoginModal?.();
+                          alert('Akses Terbatas: Hanya Admin yang dapat mengedit nama dan informasi ruangan rawat inap.');
+                          return;
+                        }
+                        setEditingWard(ward);
+                      }}
                       className="p-2 bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 text-purple-700 rounded-xl transition-colors shadow-xs"
-                      title="Edit nama dan detail ruangan ini"
+                      title={isAdmin ? 'Edit nama dan detail ruangan ini' : 'Edit Ruangan (Khusus Admin)'}
                     >
-                      <PenLine className="w-4 h-4" />
+                      {isAdmin ? <PenLine className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-600" />}
                     </button>
 
-                    {/* Clone button */}
+                    {/* Clone button (Khusus Admin) */}
                     <button
-                      onClick={() => onOpenDuplicateModal(ward)}
+                      type="button"
+                      onClick={() => {
+                        if (!isAdmin) {
+                          onOpenLoginModal?.();
+                          alert('Akses Terbatas: Hanya Admin yang dapat menduplikat ruangan rawat inap.');
+                          return;
+                        }
+                        onOpenDuplicateModal(ward);
+                      }}
                       className="p-2 bg-white hover:bg-purple-50 border border-slate-200 hover:border-purple-300 text-slate-700 hover:text-purple-700 rounded-xl transition-colors shadow-xs"
-                      title="Duplikat dari ruangan ini"
+                      title={isAdmin ? 'Duplikat dari ruangan ini' : 'Duplikat Ruangan (Khusus Admin)'}
                     >
-                      <Copy className="w-4 h-4" />
+                      {isAdmin ? <Copy className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-600" />}
                     </button>
 
                     {/* Copy Direct URL */}
@@ -309,8 +392,8 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
                       <Download className="w-4 h-4" />
                     </button>
 
-                    {/* Delete (if not last remaining) */}
-                    {wards.length > 1 && (
+                    {/* Delete (Khusus Admin & jika bukan satu-satunya ruangan) */}
+                    {isAdmin && wards.length > 1 && (
                       <>
                         {deleteConfirmId === ward.id ? (
                           <div className="flex items-center gap-1">
@@ -319,13 +402,13 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
                                 onDeleteWard(ward.id);
                                 setDeleteConfirmId(null);
                               }}
-                              className="px-2 py-1 bg-rose-600 text-white text-[10px] font-black rounded-lg shadow-xs"
+                              className="px-2 py-1 bg-rose-600 text-white text-[10px] font-black rounded-lg shadow-xs cursor-pointer"
                             >
                               Yakin Hapus?
                             </button>
                             <button
                               onClick={() => setDeleteConfirmId(null)}
-                              className="p-1 bg-slate-200 text-slate-700 rounded-lg text-[10px]"
+                              className="p-1 bg-slate-200 text-slate-700 rounded-lg text-[10px] cursor-pointer"
                             >
                               Batal
                             </button>
@@ -333,13 +416,27 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
                         ) : (
                           <button
                             onClick={() => setDeleteConfirmId(ward.id)}
-                            className="p-2 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-400 hover:text-rose-600 rounded-xl transition-colors shadow-xs"
-                            title="Hapus Ruangan"
+                            className="p-2 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-300 text-slate-400 hover:text-rose-600 rounded-xl transition-colors shadow-xs cursor-pointer"
+                            title="Hapus Ruangan (Khusus Admin)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </>
+                    )}
+
+                    {!isAdmin && wards.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onOpenLoginModal?.();
+                          alert('Akses Terbatas: Hanya Admin yang dapat menghapus ruangan rawat inap. Silakan masuk sebagai Admin terlebih dahulu.');
+                        }}
+                        className="p-2 bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-slate-400 hover:text-amber-700 rounded-xl transition-colors shadow-xs cursor-pointer"
+                        title="Hapus Ruangan (Khusus Admin)"
+                      >
+                        <Lock className="w-4 h-4 text-amber-600" />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -353,6 +450,8 @@ export const WardManagementModal: React.FC<WardManagementModalProps> = ({
           isOpen={Boolean(editingWard)}
           onClose={() => setEditingWard(null)}
           ward={editingWard}
+          isAdmin={isAdmin}
+          onOpenLoginModal={onOpenLoginModal}
           onSaveWard={(wId, upd) => {
             if (onUpdateWard) {
               onUpdateWard(wId, upd);

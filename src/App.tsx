@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from './services/storage';
-import { FirebaseSyncService } from './services/firebase';
+import { FirebaseSyncService, SyncStatusInfo } from './services/firebase';
 import { WardSyncService } from './services/wardSync';
 import { Nurse, Patient, ShiftDuty, EducationArticle, AppSettings, SurveyFeedback, WardInfo } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -19,7 +19,12 @@ import { DuplicateWardModal } from './components/DuplicateWardModal';
 import { WardManagementModal } from './components/WardManagementModal';
 import { EditWardModal } from './components/EditWardModal';
 import { showToast } from './utils/toast';
-import { getWitaDateString, determineActiveShift } from './utils/witaTime';
+import {
+  getWitaDateString,
+  determineActiveShift,
+  determineActiveShiftContext,
+  getScheduleDateForShift,
+} from './utils/witaTime';
 
 export default function App() {
   // Multi-Ward Isolation State
@@ -67,8 +72,6 @@ export default function App() {
     setPatients(newPatients);
     setSchedules(newSchedules);
     setSettings(newSettings);
-    setEffectiveTheme(StorageService.getEffectiveTheme(newSettings, new Date()));
-    setCurrentShift(determineActiveShift(newSettings.shiftConfigs, new Date()));
 
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -79,6 +82,11 @@ export default function App() {
   };
 
   const handleDuplicateWardSuccess = async (newWard: WardInfo) => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak: Hanya Admin yang berhak menduplikat ruangan rawat inap.', 'error');
+      setIsLoginModalOpen(true);
+      return;
+    }
     const sourceId = duplicateSourceWard?.id || activeWardId;
     StorageService.duplicateWard(sourceId, newWard);
     const updatedWards = StorageService.getWards();
@@ -100,6 +108,11 @@ export default function App() {
   };
 
   const handleDeleteWard = async (wardId: string) => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak: Hanya Admin yang berhak menghapus ruangan rawat inap.', 'error');
+      setIsLoginModalOpen(true);
+      return;
+    }
     const success = StorageService.deleteWard(wardId);
     if (success) {
       const updatedWards = StorageService.getWards();
@@ -112,6 +125,11 @@ export default function App() {
   };
 
   const handleImportWard = async (imported: WardInfo) => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak: Hanya Admin yang berhak mengimpor data ruangan.', 'error');
+      setIsLoginModalOpen(true);
+      return;
+    }
     const updatedWards = StorageService.getWards();
     setWards(updatedWards);
     handleSelectWard(imported.id);
@@ -120,6 +138,11 @@ export default function App() {
   };
 
   const handleUpdateWard = async (wardId: string, updated: Partial<WardInfo>) => {
+    if (!isAdmin) {
+      showToast('Akses Ditolak: Hanya Admin yang berhak mengedit ruangan rawat inap.', 'error');
+      setIsLoginModalOpen(true);
+      return;
+    }
     const updatedWard = StorageService.updateWard(wardId, updated);
     const updatedWards = StorageService.getWards();
     setWards(updatedWards);
@@ -134,7 +157,6 @@ export default function App() {
       };
       StorageService.saveSettings(newSettings, activeWardId);
       setSettings(newSettings);
-      setEffectiveTheme(StorageService.getEffectiveTheme(newSettings, new Date()));
     }
 
     // Broadcast and persist to server & Firebase for all devices
@@ -210,20 +232,35 @@ export default function App() {
   });
   const [patientSearchQuery, setPatientSearchQuery] = useState<string>('');
 
-  // WITA Active Shift state (Requirement 1 & 3)
-  const [currentShift, setCurrentShift] = useState<string>(() =>
-    determineActiveShift(settings.shiftConfigs, new Date())
-  );
-  const [selectedShift, setSelectedShift] = useState<string>(() =>
-    determineActiveShift(settings.shiftConfigs, new Date())
-  );
-  const [effectiveTheme, setEffectiveTheme] = useState<string>(() =>
-    StorageService.getEffectiveTheme(settings, new Date())
-  );
+  // WITA Clock & Live rollover state (10s ticker)
+  const [currentWitaTime, setCurrentWitaTime] = useState<Date>(() => new Date());
+  const [syncStatus, setSyncStatus] = useState<SyncStatusInfo>(() => FirebaseSyncService.getSyncStatus());
 
-  // 1. Cross-Device Realtime Synchronization (Server SSE + Firebase Online)
+  // 10-second ticker for accurate WITA time and shift switching
   useEffect(() => {
-    // Bootstrap initial data if cloud is empty
+    const timer = setInterval(() => {
+      setCurrentWitaTime(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // WITA Active Shift context (Unified single source of truth across dashboard, calendar, and TV)
+  const activeShiftCtx = determineActiveShiftContext(settings.shiftConfigs, currentWitaTime);
+  const currentShift = activeShiftCtx.shiftId;
+  const [selectedShift, setSelectedShift] = useState<string>(activeShiftCtx.shiftId);
+  const effectiveTheme = StorageService.getEffectiveTheme(settings, currentWitaTime);
+
+  // Sync selectedShift with currentShift when active shift changes naturally
+  useEffect(() => {
+    setSelectedShift(activeShiftCtx.shiftId);
+  }, [activeShiftCtx.shiftId]);
+
+  // 1. Cross-Device Realtime Synchronization (Firebase Cloud Firestore as Single Source of Truth)
+  useEffect(() => {
+    // Connection & sync status listener
+    const unsubStatus = FirebaseSyncService.subscribeSyncStatus(setSyncStatus);
+
+    // Bootstrap initial global data if cloud is empty
     FirebaseSyncService.bootstrapData(
       nurses,
       schedules,
@@ -232,6 +269,15 @@ export default function App() {
       educationArticles,
       surveys,
       wards
+    );
+
+    // Ensure active ward is bootstrapped in Cloud
+    FirebaseSyncService.bootstrapWardData(
+      activeWardId,
+      nurses,
+      schedules,
+      patients,
+      settings
     );
 
     // Cross-Device Ward Synchronization (syncs room names to all devices opening the link)
@@ -252,7 +298,6 @@ export default function App() {
             };
             StorageService.saveSettings(syncedSettings, curActiveId);
             setSettings(syncedSettings);
-            setEffectiveTheme(StorageService.getEffectiveTheme(syncedSettings, new Date()));
             showToast(`⚡ Nama ruangan disinkronkan dari perangkat lain: ${activeWardMatch.name}`, 'info');
           }
         }
@@ -263,30 +308,43 @@ export default function App() {
       if (Array.isArray(remoteWards) && remoteWards.length > 0) {
         setWards(remoteWards);
         StorageService.saveWards(remoteWards);
+
+        const curActiveId = activeWardId.trim().toLowerCase();
+        const activeWardMatch = remoteWards.find((w) => w.id.trim().toLowerCase() === curActiveId);
+        if (activeWardMatch) {
+          const curSettings = StorageService.getSettings(curActiveId);
+          if (curSettings.wardName !== activeWardMatch.name) {
+            const syncedSettings: AppSettings = {
+              ...curSettings,
+              wardName: activeWardMatch.name,
+              dashboardColorTheme: activeWardMatch.colorTheme || curSettings.dashboardColorTheme || 'purple',
+            };
+            StorageService.saveSettings(syncedSettings, curActiveId);
+            setSettings(syncedSettings);
+          }
+        }
       }
     });
 
-    // Realtime listeners
-    const unsubNurses = FirebaseSyncService.subscribeNurses((remoteNurses) => {
+    // Realtime listeners strictly scoped to activeWardId (Per-Ward Isolation)
+    const unsubNurses = FirebaseSyncService.subscribeWardNurses(activeWardId, (remoteNurses) => {
       setNurses(remoteNurses);
-      StorageService.saveNurses(remoteNurses);
+      StorageService.saveNurses(remoteNurses, activeWardId);
     });
 
-    const unsubSchedules = FirebaseSyncService.subscribeSchedules((remoteSchedules) => {
+    const unsubSchedules = FirebaseSyncService.subscribeWardSchedules(activeWardId, (remoteSchedules) => {
       setSchedules(remoteSchedules);
-      StorageService.saveSchedules(remoteSchedules);
+      StorageService.saveSchedules(remoteSchedules, activeWardId);
     });
 
-    const unsubPatients = FirebaseSyncService.subscribePatients((remotePatients) => {
+    const unsubPatients = FirebaseSyncService.subscribeWardPatients(activeWardId, (remotePatients) => {
       setPatients(remotePatients);
-      StorageService.savePatients(remotePatients);
+      StorageService.savePatients(remotePatients, activeWardId);
     });
 
-    const unsubSettings = FirebaseSyncService.subscribeSettings((remoteSettings) => {
+    const unsubSettings = FirebaseSyncService.subscribeWardSettings(activeWardId, (remoteSettings) => {
       setSettings(remoteSettings);
-      StorageService.saveSettings(remoteSettings);
-      setEffectiveTheme(StorageService.getEffectiveTheme(remoteSettings, new Date()));
-      setCurrentShift(determineActiveShift(remoteSettings.shiftConfigs, new Date()));
+      StorageService.saveSettings(remoteSettings, activeWardId);
     });
 
     const unsubEdu = FirebaseSyncService.subscribeEducation((remoteEdu) => {
@@ -342,6 +400,7 @@ export default function App() {
       .catch((err) => console.warn('[App] IDB hydration notice:', err));
 
     return () => {
+      unsubStatus();
       unsubWardSync();
       unsubFirebaseWards();
       unsubNurses();
@@ -354,28 +413,25 @@ export default function App() {
     };
   }, [activeWardId]);
 
-  // 2. WITA Time Interval Timer (every 10 seconds checks active shift)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      const active = determineActiveShift(settings.shiftConfigs, now);
-      setCurrentShift(active);
-      setEffectiveTheme(StorageService.getEffectiveTheme(settings, now));
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [settings]);
-
   // Current Date in WITA: YYYY-MM-DD
-  const todayWitaDate = getWitaDateString(new Date());
+  const todayWitaDate = getWitaDateString(currentWitaTime);
+
+  // Effective schedule roster date for selected shift (Requirement 2)
+  const effectiveScheduleDate = getScheduleDateForShift(
+    selectedShift,
+    activeShiftCtx,
+    settings.shiftConfigs,
+    currentWitaTime
+  );
 
   // Today's duty for selected shift
   const todayDuties = schedules.find(
-    (s) => s.date === todayWitaDate && s.shift === selectedShift
+    (s) => s.date === effectiveScheduleDate && s.shift === selectedShift
   );
 
-  // Active shift duty for TV slide show
+  // Active live shift duty for TV slide show (always uses activeShiftCtx.shiftDate)
   const currentLiveShiftDuty = schedules.find(
-    (s) => s.date === todayWitaDate && s.shift === currentShift
+    (s) => s.date === activeShiftCtx.shiftDate && s.shift === activeShiftCtx.shiftId
   );
   const liveAssignedIds = currentLiveShiftDuty?.nurseIds || [];
 
@@ -389,7 +445,7 @@ export default function App() {
     }
     StorageService.setSchedule(duty, activeWardId);
     setSchedules(StorageService.getSchedules(activeWardId));
-    FirebaseSyncService.saveScheduleOnline(duty);
+    FirebaseSyncService.saveWardScheduleOnline(activeWardId, duty);
   };
 
   const handleImportSchedules = (mergedDuties: ShiftDuty[]) => {
@@ -399,31 +455,29 @@ export default function App() {
     }
     StorageService.saveSchedules(mergedDuties, activeWardId);
     setSchedules(mergedDuties);
-    mergedDuties.forEach((duty) => {
-      FirebaseSyncService.saveScheduleOnline(duty);
-    });
+    FirebaseSyncService.saveWardSchedulesBulkOnline(activeWardId, mergedDuties);
   };
 
   const handleUpdateNurses = (updated: Nurse[]) => {
     nurses.forEach((oldNurse) => {
       if (!updated.some((n) => n.id === oldNurse.id)) {
-        FirebaseSyncService.deleteNurseOnline(oldNurse.id);
+        FirebaseSyncService.deleteWardNurseOnline(activeWardId, oldNurse.id);
       }
     });
     setNurses(updated);
     StorageService.saveNurses(updated, activeWardId);
-    updated.forEach((nurse) => FirebaseSyncService.saveNurseOnline(nurse));
+    FirebaseSyncService.saveWardNursesBulkOnline(activeWardId, updated);
   };
 
   const handleUpdatePatients = (updated: Patient[]) => {
     patients.forEach((oldPat) => {
       if (!updated.some((p) => p.id === oldPat.id)) {
-        FirebaseSyncService.deletePatientOnline(oldPat.id);
+        FirebaseSyncService.deleteWardPatientOnline(activeWardId, oldPat.id);
       }
     });
     setPatients(updated);
     StorageService.savePatients(updated, activeWardId);
-    updated.forEach((pat) => FirebaseSyncService.savePatientOnline(pat));
+    updated.forEach((pat) => FirebaseSyncService.saveWardPatientOnline(activeWardId, pat));
   };
 
   const handleUpdateEducation = (updated: EducationArticle[]) => {
@@ -447,7 +501,7 @@ export default function App() {
       });
       updated.forEach((edu) => {
         FirebaseSyncService.saveEducationOnline(edu).catch((err) => {
-          console.warn('[App] Cloud education sync notice (document might exceed 1MB limit for offline files):', err);
+          console.warn('[App] Cloud education sync notice:', err);
         });
       });
     } catch (err) {
@@ -458,9 +512,7 @@ export default function App() {
   const handleUpdateSettings = (updated: AppSettings) => {
     setSettings(updated);
     StorageService.saveSettings(updated, activeWardId);
-    setEffectiveTheme(StorageService.getEffectiveTheme(updated, new Date()));
-    setCurrentShift(determineActiveShift(updated.shiftConfigs, new Date()));
-    FirebaseSyncService.saveSettingsOnline(updated);
+    FirebaseSyncService.saveWardSettingsOnline(activeWardId, updated);
   };
 
   const handleCreateSurvey = (newSurvey: SurveyFeedback) => {
@@ -571,14 +623,25 @@ export default function App() {
               activeWardId={activeWardId}
               onOpenWardManagement={() => setIsWardManagementOpen(true)}
               onOpenDuplicateWard={() => {
+                if (!isAdmin) {
+                  showToast('Akses Terbatas: Hanya Admin yang dapat menduplikat ruangan rawat inap.', 'error');
+                  setIsLoginModalOpen(true);
+                  return;
+                }
                 const cur = wards.find((w) => w.id === activeWardId) || wards[0];
                 setDuplicateSourceWard(cur);
                 setIsDuplicateModalOpen(true);
               }}
               onEditActiveWard={() => {
+                if (!isAdmin) {
+                  showToast('Akses Terbatas: Hanya Admin yang dapat mengedit nama ruangan rawat inap.', 'error');
+                  setIsLoginModalOpen(true);
+                  return;
+                }
                 const cur = wards.find((w) => w.id === activeWardId) || wards[0];
                 setEditingWardModalTarget(cur);
               }}
+              syncStatus={syncStatus}
             />
 
             {/* TAB: DASHBOARD (Shift Hari Ini) */}
@@ -603,6 +666,11 @@ export default function App() {
                 onOpenMonthlySchedule={() => setActiveTab('monthly')}
                 onOpenImageSettings={() => setActiveTab('settings')}
                 onEditWard={() => {
+                  if (!isAdmin) {
+                    showToast('Akses Terbatas: Hanya Admin yang dapat mengedit nama ruangan rawat inap.', 'error');
+                    setIsLoginModalOpen(true);
+                    return;
+                  }
                   const cur = wards.find((w) => w.id === activeWardId) || wards[0];
                   setEditingWardModalTarget(cur);
                 }}
@@ -749,12 +817,19 @@ export default function App() {
         activeWardId={activeWardId}
         onSelectWard={handleSelectWard}
         onOpenDuplicateModal={(src) => {
+          if (!isAdmin) {
+            showToast('Akses Terbatas: Hanya Admin yang dapat menduplikat ruangan rawat inap.', 'error');
+            setIsLoginModalOpen(true);
+            return;
+          }
           setDuplicateSourceWard(src);
           setIsDuplicateModalOpen(true);
         }}
         onDeleteWard={handleDeleteWard}
         onImportWard={handleImportWard}
         onUpdateWard={handleUpdateWard}
+        isAdmin={isAdmin}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
       {/* Duplicate Ward Modal */}
@@ -764,6 +839,8 @@ export default function App() {
         sourceWard={duplicateSourceWard || wards.find((w) => w.id === activeWardId) || wards[0]}
         availableWards={wards}
         onDuplicateSuccess={handleDuplicateWardSuccess}
+        isAdmin={isAdmin}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
       {/* Global Edit Ward Identity Modal (accessible from Header, Dashboard, etc.) */}
@@ -772,6 +849,8 @@ export default function App() {
         onClose={() => setEditingWardModalTarget(null)}
         ward={editingWardModalTarget}
         onSaveWard={handleUpdateWard}
+        isAdmin={isAdmin}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
       {/* Global In-App Notification Toasts */}
